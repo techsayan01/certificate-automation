@@ -2,11 +2,14 @@
 Certificate Automation Pipeline — entry point.
 
 Usage:
-  python main.py                          # process all rows in CSV_PATH
-  python main.py --dry-run                # generate PDFs only, skip email
-  python main.py --email alice@ex.com     # single recipient
-  python main.py --csv path/to/file.csv   # override CSV path
-  python main.py --filter-status Finalist # only rows with that submission status
+  python main.py --project filmfreeway                   # process all rows
+  python main.py --project filmfreeway --dry-run         # generate PDFs only, skip email
+  python main.py --project filmfreeway --email a@b.com   # single recipient
+  python main.py --project filmfreeway --csv path/to.csv # override CSV path
+  python main.py --project filmfreeway --filter-status Finalist
+
+Each project has its own Gmail credentials and settings in projects/<name>/.env.
+Canva credentials are shared from the root .env.
 """
 
 import argparse
@@ -31,6 +34,10 @@ def parse_args() -> argparse.Namespace:
         description="Generate & email personalised certificates from a CSV."
     )
     parser.add_argument(
+        "--project", type=str, required=True,
+        help="Project name — must match a folder under projects/<name>/.env",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true",
         help="Generate PDFs only — do not send emails.",
     )
@@ -40,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--csv", type=str, default=None,
-        help="Path to the CSV file (overrides CSV_PATH in .env).",
+        help="Path to the CSV file (overrides CSV_PATH in project .env).",
     )
     parser.add_argument(
         "--filter-status", type=str, default=None,
@@ -63,12 +70,15 @@ def _safe_filename(name: str, idx: int) -> str:
 def main() -> None:
     args = parse_args()
 
-    # ── validate config ───────────────────────────────────────────────────────
+    # ── load project config (root .env + projects/<name>/.env) ───────────────
     try:
+        Config.load(args.project)
         Config.validate()
-    except ValueError as exc:
+    except (FileNotFoundError, ValueError) as exc:
         logger.error(str(exc))
         sys.exit(1)
+
+    logger.info(f"Loaded config — {Config.summary()}")
 
     dry_run = args.dry_run or Config.DRY_RUN
     csv_path = args.csv or Config.CSV_PATH

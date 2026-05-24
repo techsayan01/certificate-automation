@@ -1,7 +1,20 @@
+# Credentials — never commit these
 .env
-*.json
+projects/**/.env
+projects/**/gmail_token.json
+canva_token.json
+gmail_token.json
+credentials.json
+
+# Keep the example files
+!.env.example
+!projects/project_name.env.example
 !email_sender/templates/category_map.json
+
+# Output
 data/output/
+
+# Python
 __pycache__/
 *.pyc
 .venv/
