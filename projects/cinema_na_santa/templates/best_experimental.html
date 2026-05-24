@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:0}
+    .wrap{max-width:600px;margin:40px auto;background:#fff;border-radius:8px;
+          overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+    .hdr{background:#7c3626;color:#fde8e0;padding:32px 40px;text-align:center}
+    .hdr h1{margin:0;font-size:22px;letter-spacing:1px}
+    .hdr p{margin:6px 0 0;color:#f5c6b5;font-size:13px}
+    .body{padding:32px 40px;color:#333;line-height:1.75}
+    .body h2{color:#7c3626;margin-top:0}
+    .card{background:#fde8e0;border-left:4px solid #7c3626;
+          padding:14px 18px;border-radius:4px;margin:20px 0}
+    .ftr{background:#f9f9f9;color:#999;font-size:12px;
+         padding:18px 40px;text-align:center;border-top:1px solid #eee}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>🔬 Best Experimental Film</h1>
+    <p>Cinema na Santa Festival — Official Award</p>
+  </div>
+  <div class="body">
+    <h2>Dear {{ name }},</h2>
+    <p>We are excited to honour your work with the <strong>Best Experimental Film</strong> award at <strong>Cinema na Santa Festival</strong>.</p>
+    <div class="card">
+      <strong>Film  :</strong> {{ project }}<br/>
+      <strong>Award :</strong> {{ category }}
+    </div>
+    <p>Your film challenged conventions and pushed the boundaries of cinematic expression. Thank you for daring to experiment — cinema needs voices like yours.</p>
+    <p>Your certificate is attached. Keep pushing boundaries!</p>
+    <p>Creatively yours,<br/><strong>The Cinema na Santa Team</strong></p>
+  </div>
+  <div class="ftr">This is an automated certificate delivery. Please do not reply.</div>
+</div>
+</body>
+</html>

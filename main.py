@@ -107,7 +107,7 @@ def main() -> None:
 
     # ── setup clients ─────────────────────────────────────────────────────────
     canva = CanvaDesignManager()
-    template_manager = TemplateManager(Config.EMAIL_TEMPLATE_DIR)
+    template_manager = TemplateManager()
     email_client: EmailClient | None = None
 
     if not dry_run:

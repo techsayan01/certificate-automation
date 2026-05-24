@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    body{font-family:Georgia,serif;background:#fafafa;margin:0;padding:0}
+    .wrap{max-width:600px;margin:40px auto;background:#fff;border-radius:8px;
+          overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+    .hdr{background:#1c1c1c;color:#d4af37;padding:32px 40px;text-align:center}
+    .hdr h1{margin:0;font-size:22px;letter-spacing:2px;text-transform:uppercase}
+    .hdr p{margin:6px 0 0;color:#b8942e;font-size:13px}
+    .body{padding:32px 40px;color:#1c1c1c;line-height:1.8}
+    .body h2{color:#1c1c1c;margin-top:0}
+    .card{background:#fdf8e1;border:1px solid #d4af37;
+          padding:14px 18px;border-radius:4px;margin:20px 0}
+    .ftr{background:#f0f0f0;color:#999;font-size:12px;
+         padding:18px 40px;text-align:center}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>🎖️ Best Feature Film</h1>
+    <p>Cinema na Santa Festival — Official Award</p>
+  </div>
+  <div class="body">
+    <h2>Dear {{ name }},</h2>
+    <p>It is our great honour to present you with the <strong>Best Feature Film</strong> award at <strong>Cinema na Santa Festival</strong>.</p>
+    <div class="card">
+      <strong>Film  :</strong> {{ project }}<br/>
+      <strong>Award :</strong> {{ category }}
+    </div>
+    <p>Your feature film demonstrated exceptional craft, narrative depth, and a remarkable artistic vision. This recognition reflects the dedication and talent you poured into your work.</p>
+    <p>Your official certificate is attached. Congratulations on this outstanding achievement.</p>
+    <p>With deepest respect,<br/><strong>The Cinema na Santa Jury</strong></p>
+  </div>
+  <div class="ftr">This is an automated certificate delivery. Please do not reply.</div>
+</div>
+</body>
+</html>

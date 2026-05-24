@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    body{font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:0}
+    .wrap{max-width:600px;margin:40px auto;background:#fff;border-radius:8px;
+          overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+    .hdr{background:#0f3460;color:#e0e7ff;padding:32px 40px;text-align:center}
+    .hdr h1{margin:0;font-size:22px;letter-spacing:1px}
+    .hdr p{margin:6px 0 0;color:#a5b4fc;font-size:13px}
+    .body{padding:32px 40px;color:#333;line-height:1.75}
+    .body h2{color:#0f3460;margin-top:0}
+    .card{background:#e0e7ff;border-left:4px solid #0f3460;
+          padding:14px 18px;border-radius:4px;margin:20px 0}
+    .ftr{background:#f9f9f9;color:#999;font-size:12px;
+         padding:18px 40px;text-align:center;border-top:1px solid #eee}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>🎵 Best Music Video</h1>
+    <p>Cinema na Santa Festival — Official Award</p>
+  </div>
+  <div class="body">
+    <h2>Dear {{ name }},</h2>
+    <p>Congratulations on winning <strong>Best Music Video</strong> at <strong>Cinema na Santa Festival</strong>!</p>
+    <div class="card">
+      <strong>Project:</strong> {{ project }}<br/>
+      <strong>Award  :</strong> {{ category }}
+    </div>
+    <p>Your music video was a perfect marriage of sound and vision. The creativity and energy you brought to the screen made it truly memorable.</p>
+    <p>Your certificate is attached. Keep making great work!</p>
+    <p>Harmoniously,<br/><strong>The Cinema na Santa Team</strong></p>
+  </div>
+  <div class="ftr">This is an automated certificate delivery. Please do not reply.</div>
+</div>
+</body>
+</html>

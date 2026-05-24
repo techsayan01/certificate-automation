@@ -63,6 +63,10 @@ class Config:
     # ── active project name (set by load()) ────────────────────────────────────
     PROJECT: str                   = ""
 
+    # Templates: project-level dir (auto-set by load()) + global fallback dir
+    PROJECT_TEMPLATE_DIR: str      = ""          # projects/<name>/templates
+    GLOBAL_TEMPLATE_DIR: str       = "email_sender/templates"   # fallback
+
     # ── class-level env map ────────────────────────────────────────────────────
     _env: dict[str, str]           = {}
 
@@ -121,8 +125,14 @@ class Config:
         # Email
         cls.EMAIL_SUBJECT            = e.get("EMAIL_SUBJECT", cls.EMAIL_SUBJECT)
         cls.EMAIL_FROM_NAME          = e.get("EMAIL_FROM_NAME", cls.EMAIL_FROM_NAME)
-        cls.EMAIL_TEMPLATE_DIR       = e.get("EMAIL_TEMPLATE_DIR", cls.EMAIL_TEMPLATE_DIR)
         cls.DEFAULT_TEMPLATE         = e.get("DEFAULT_TEMPLATE", cls.DEFAULT_TEMPLATE)
+
+        # Template dirs — project dir is always derived from the project name;
+        # EMAIL_TEMPLATE_DIR in .env overrides only the global fallback dir.
+        cls.PROJECT_TEMPLATE_DIR     = f"projects/{cls.PROJECT}/templates"
+        cls.GLOBAL_TEMPLATE_DIR      = e.get("EMAIL_TEMPLATE_DIR", cls.GLOBAL_TEMPLATE_DIR)
+        # Keep EMAIL_TEMPLATE_DIR pointing at the project dir for backward compat.
+        cls.EMAIL_TEMPLATE_DIR       = cls.PROJECT_TEMPLATE_DIR
 
         # CSV
         cls.CSV_PATH                 = e.get("CSV_PATH", cls.CSV_PATH)
