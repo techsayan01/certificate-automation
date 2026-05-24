@@ -40,6 +40,7 @@ class Config:
     GMAIL_CLIENT_SECRET: str       = ""
     GMAIL_PROJECT_ID: str          = ""
     GMAIL_TOKEN_FILE: str          = "gmail_token.json"
+    GMAIL_SENDER_EMAIL: str        = ""    # e.g. globalvisionariesfilmfest@gmail.com
 
     # ── Email content (per-project) ────────────────────────────────────────────
     EMAIL_SUBJECT: str             = "Congratulations — Your Certificate is Here!"
@@ -121,6 +122,7 @@ class Config:
         cls.GMAIL_CLIENT_SECRET      = e.get("GMAIL_CLIENT_SECRET", cls.GMAIL_CLIENT_SECRET)
         cls.GMAIL_PROJECT_ID         = e.get("GMAIL_PROJECT_ID", cls.GMAIL_PROJECT_ID)
         cls.GMAIL_TOKEN_FILE         = e.get("GMAIL_TOKEN_FILE", cls.GMAIL_TOKEN_FILE)
+        cls.GMAIL_SENDER_EMAIL       = e.get("GMAIL_SENDER_EMAIL", cls.GMAIL_SENDER_EMAIL)
 
         # Email
         cls.EMAIL_SUBJECT            = e.get("EMAIL_SUBJECT", cls.EMAIL_SUBJECT)

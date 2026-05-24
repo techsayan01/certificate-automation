@@ -34,9 +34,12 @@ def get_signature(project: str) -> str:
         creds   = get_gmail_credentials()
         service = build("gmail", "v1", credentials=creds)
 
-        # Fetch the primary sendAs address (the authenticated account's own address)
-        profile      = service.users().getProfile(userId="me").execute()
-        sender_email = profile.get("emailAddress", "me")
+        # Use the sender email from config (avoids needing gmail.readonly scope)
+        sender_email = Config.GMAIL_SENDER_EMAIL
+        if not sender_email:
+            logger.warning("GMAIL_SENDER_EMAIL not set in project .env — skipping signature.")
+            _cache[project] = ""
+            return ""
 
         result  = (
             service.users()
