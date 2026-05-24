@@ -1,56 +1,71 @@
 """
-CanvaDesignManager — end-to-end certificate generation.
+CertificateGenerator — renders certificates from a local PNG/JPG template
+using Pillow. No Canva API or credentials required.
 
-Steps per recipient:
-  1. POST /autofills       → start autofill job (brand template + field values)
-  2. GET  /autofills/{id}  → poll until success → get new design_id
-  3. POST /exports         → start PDF export job
-  4. GET  /exports/{id}    → poll until success → get download URL
-  5. Stream download → save to output_path
+How to get your template image:
+  1. Open your certificate in Canva.
+  2. File → Download → PNG  (choose the blank version — no name/text filled in).
+  3. Save it as  data/certificate_template.png  (or set CERT_TEMPLATE_PATH in .env).
 
-Single-line constraint:
-  Canva's autofill API does not expose font-size directly, so we truncate
-  names/values that exceed MAX_CHARS to keep them on one line visually.
-  For finer control, adjust your Canva template's text-box to use
-  "auto-resize" (shrink text to fit) inside the editor.
+Text placement:
+  Each field (Name, Project, Category) has an (x, y) coordinate and a font size
+  defined in .env. Run  python canva/preview.py  to see a labelled preview image
+  that shows the pixel coordinates of every point — use that to dial in your values.
+
+Single-line guarantee:
+  If the rendered text is wider than MAX_WIDTH_PX, the font size is reduced by 1pt
+  at a time until it fits.
 """
 
-import time
-import urllib.parse
+from __future__ import annotations
+
+import os
 from pathlib import Path
 
-import requests
+from PIL import Image, ImageDraw, ImageFont
 
-from canva.client import CanvaClient
 from config import Config
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Characters beyond this limit get truncated with "…" to prevent visual wrapping.
-# Tune to match the width of your certificate text boxes.
-MAX_CHARS = {
-    "name": 40,
-    "project": 60,
-    "category": 50,
-}
 
+# ─── helpers ──────────────────────────────────────────────────────────────────
 
-def _truncate(value: str, field: str) -> str:
-    limit = MAX_CHARS.get(field, 60)
-    if len(value) <= limit:
-        return value
+def _load_font(path: str, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    if path and os.path.exists(path):
+        return ImageFont.truetype(path, size)
+    # Fall back to Pillow's built-in bitmap font (always available)
     logger.warning(
-        f"  '{field}' value is {len(value)} chars (limit {limit}) — truncating."
+        f"Font not found at '{path}' — using default bitmap font. "
+        "Set CERT_FONT_PATH in .env for a proper TTF/OTF font."
     )
-    return value[: limit - 1] + "…"
+    return ImageFont.load_default()
 
 
-class CanvaDesignManager:
-    def __init__(self):
-        self._client = CanvaClient()
+def _fit_text(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font_path: str,
+    font_size: int,
+    max_width: int,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Reduce font size until the text fits within max_width pixels."""
+    font = _load_font(font_path, font_size)
+    while font_size > 8:
+        bbox = draw.textbbox((0, 0), text, font=font)
+        text_width = bbox[2] - bbox[0]
+        if text_width <= max_width:
+            break
+        font_size -= 1
+        font = _load_font(font_path, font_size)
+    return font
 
-    # ── public ────────────────────────────────────────────────────────────────
+
+# ─── main class ───────────────────────────────────────────────────────────────
+
+class CanvaDesignManager:           # name kept so main.py needs no changes
+    """Generates certificate PDFs by compositing text onto a PNG template."""
 
     def generate_certificate(
         self,
@@ -59,117 +74,58 @@ class CanvaDesignManager:
         category: str,
         output_path: str,
     ) -> str:
-        """
-        Full pipeline: autofill → export → download.
-        Returns the saved output_path.
-        """
-        design_id = self._autofill(name, project, category)
-        download_url = self._export(design_id)
-        self._download(download_url, output_path)
-        return output_path
+        template_path = Config.CERT_TEMPLATE_PATH
+        if not os.path.exists(template_path):
+            raise FileNotFoundError(
+                f"Certificate template not found: {template_path}\n"
+                "Export your blank Canva design as PNG and set CERT_TEMPLATE_PATH in .env."
+            )
 
-    # ── step 1: autofill ──────────────────────────────────────────────────────
+        img = Image.open(template_path).convert("RGBA")
+        draw = ImageDraw.Draw(img)
 
-    def _autofill(self, name: str, project: str, category: str) -> str:
-        """
-        Trigger an autofill job on the brand template and return the
-        resulting design_id once the job succeeds.
-        """
-        payload = {
-            "brand_template_id": Config.CANVA_BRAND_TEMPLATE_ID,
-            "title": f"Certificate — {name}",
-            "data": {
-                Config.CANVA_NAME_FIELD: {
-                    "type": "text",
-                    "text": _truncate(name, "name"),
-                },
-                Config.CANVA_PROJECT_FIELD: {
-                    "type": "text",
-                    "text": _truncate(project, "project"),
-                },
-                Config.CANVA_CATEGORY_FIELD: {
-                    "type": "text",
-                    "text": _truncate(category, "category"),
-                },
-            },
-        }
+        fields = [
+            (
+                Config.CERT_NAME_FIELD,
+                name,
+                Config.CERT_NAME_X,
+                Config.CERT_NAME_Y,
+                Config.CERT_NAME_FONT_SIZE,
+                Config.CERT_NAME_COLOR,
+                Config.CERT_NAME_ANCHOR,
+            ),
+            (
+                Config.CERT_PROJECT_FIELD,
+                project,
+                Config.CERT_PROJECT_X,
+                Config.CERT_PROJECT_Y,
+                Config.CERT_PROJECT_FONT_SIZE,
+                Config.CERT_PROJECT_COLOR,
+                Config.CERT_PROJECT_ANCHOR,
+            ),
+            (
+                Config.CERT_CATEGORY_FIELD,
+                category,
+                Config.CERT_CATEGORY_X,
+                Config.CERT_CATEGORY_Y,
+                Config.CERT_CATEGORY_FONT_SIZE,
+                Config.CERT_CATEGORY_COLOR,
+                Config.CERT_CATEGORY_ANCHOR,
+            ),
+        ]
 
-        response = self._client.post("/autofills", payload)
-        job_id = response["job"]["id"]
-        logger.debug(f"  Autofill job started: {job_id}")
+        for field_name, text, x, y, font_size, color, anchor in fields:
+            font = _fit_text(
+                draw, text,
+                font_path=Config.CERT_FONT_PATH,
+                font_size=font_size,
+                max_width=Config.CERT_MAX_TEXT_WIDTH,
+            )
+            draw.text((x, y), text, font=font, fill=color, anchor=anchor)
+            logger.debug(f"  Drew '{field_name}': \"{text}\" at ({x}, {y})")
 
-        return self._poll_autofill(job_id)
-
-    def _poll_autofill(self, job_id: str) -> str:
-        deadline = time.time() + Config.CANVA_POLL_TIMEOUT
-        while time.time() < deadline:
-            data = self._client.get(f"/autofills/{job_id}")
-            job = data["job"]
-            status = job["status"]
-
-            if status == "success":
-                design_id = job["result"]["design"]["id"]
-                logger.debug(f"  Autofill complete → design_id: {design_id}")
-                return design_id
-
-            if status == "failed":
-                raise RuntimeError(
-                    f"Canva autofill job {job_id} failed: {job.get('error')}"
-                )
-
-            time.sleep(Config.CANVA_POLL_INTERVAL)
-
-        raise TimeoutError(
-            f"Canva autofill job {job_id} did not finish within "
-            f"{Config.CANVA_POLL_TIMEOUT}s."
-        )
-
-    # ── step 2: export ────────────────────────────────────────────────────────
-
-    def _export(self, design_id: str) -> str:
-        """Kick off a PDF export and return the download URL."""
-        payload = {
-            "design_id": design_id,
-            "format": {"type": "pdf"},
-        }
-        response = self._client.post("/exports", payload)
-        export_id = response["job"]["id"]
-        logger.debug(f"  Export job started: {export_id}")
-
-        return self._poll_export(export_id)
-
-    def _poll_export(self, export_id: str) -> str:
-        deadline = time.time() + Config.CANVA_POLL_TIMEOUT
-        while time.time() < deadline:
-            data = self._client.get(f"/exports/{export_id}")
-            job = data["job"]
-            status = job["status"]
-
-            if status == "success":
-                url = job["urls"][0]
-                logger.debug(f"  Export ready: {url[:60]}…")
-                return url
-
-            if status == "failed":
-                raise RuntimeError(
-                    f"Canva export job {export_id} failed: {job.get('error')}"
-                )
-
-            time.sleep(Config.CANVA_POLL_INTERVAL)
-
-        raise TimeoutError(
-            f"Canva export job {export_id} did not finish within "
-            f"{Config.CANVA_POLL_TIMEOUT}s."
-        )
-
-    # ── step 3: download ──────────────────────────────────────────────────────
-
-    @staticmethod
-    def _download(url: str, output_path: str):
+        # Save as PDF (Pillow converts PNG→PDF automatically)
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        with requests.get(url, stream=True, timeout=120) as r:
-            r.raise_for_status()
-            with open(output_path, "wb") as fh:
-                for chunk in r.iter_content(chunk_size=8192):
-                    fh.write(chunk)
-        logger.debug(f"  PDF saved → {output_path}")
+        rgb = img.convert("RGB")
+        rgb.save(output_path, "PDF", resolution=150)
+        return output_path

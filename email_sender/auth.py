@@ -1,17 +1,15 @@
 """
-Gmail OAuth2 helper.
+Gmail OAuth2 helper — reads client credentials from .env (no credentials.json needed).
 
-First run  → opens browser, saves gmail_token.json.
-Later runs → loads & auto-refreshes the stored token.
+First run  → opens browser for Google sign-in, saves gmail_token.json.
+Later runs → loads & auto-refreshes the stored token silently.
 
-Setup:
-  1. Go to https://console.cloud.google.com/
-  2. Create a project → enable "Gmail API"
-  3. OAuth consent screen → add your email as a test user
-  4. Credentials → Create OAuth 2.0 Client ID (Desktop app)
-  5. Download the JSON → save as credentials.json in the project root
+Required .env keys:
+    GMAIL_CLIENT_ID
+    GMAIL_CLIENT_SECRET
 """
 
+import json
 import os
 
 from google.auth.transport.requests import Request
@@ -26,31 +24,42 @@ logger = get_logger(__name__)
 SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
 
+def _client_config() -> dict:
+    """Build the client config dict that google-auth expects, using env vars."""
+    return {
+        "installed": {
+            "client_id":                  Config.GMAIL_CLIENT_ID,
+            "client_secret":              Config.GMAIL_CLIENT_SECRET,
+            "project_id":                 Config.GMAIL_PROJECT_ID,
+            "auth_uri":                   "https://accounts.google.com/o/oauth2/auth",
+            "token_uri":                  "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "redirect_uris":              ["http://localhost"],
+        }
+    }
+
+
 def get_gmail_credentials() -> Credentials:
     """Return valid Gmail credentials, running the OAuth flow if needed."""
     creds: Credentials | None = None
 
+    # Load saved token if it exists
     if os.path.exists(Config.GMAIL_TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(Config.GMAIL_TOKEN_FILE, SCOPES)
 
+    # Refresh or re-authorize as needed
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             logger.info("Refreshing Gmail access token…")
             creds.refresh(Request())
         else:
-            if not os.path.exists(Config.GMAIL_CREDENTIALS_FILE):
-                raise FileNotFoundError(
-                    f"Gmail credentials file not found: {Config.GMAIL_CREDENTIALS_FILE}\n"
-                    "Download it from Google Cloud Console → Credentials → OAuth 2.0 Client IDs."
-                )
             logger.info("Opening browser for Gmail authorisation…")
-            flow = InstalledAppFlow.from_client_secrets_file(
-                Config.GMAIL_CREDENTIALS_FILE, SCOPES
-            )
+            flow = InstalledAppFlow.from_client_config(_client_config(), SCOPES)
             creds = flow.run_local_server(port=0)
 
+        # Persist the token so the browser flow only runs once
         with open(Config.GMAIL_TOKEN_FILE, "w") as fh:
             fh.write(creds.to_json())
-        logger.info("Gmail token saved.")
+        logger.info(f"Gmail token saved → {Config.GMAIL_TOKEN_FILE}")
 
     return creds
