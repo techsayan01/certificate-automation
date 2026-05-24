@@ -26,34 +26,6 @@ body{
   box-shadow:0 0 60px rgba(212,175,55,.25);
 }
 
-/* ── Confetti header ──────────────────────────────────────────────────────── */
-.confetti-zone{
-  position:relative;
-  height:220px;
-  background:linear-gradient(135deg,#0a0a1a 0%,#16213e 50%,#0a0a1a 100%);
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  border-bottom:2px solid #d4af37;
-}
-
-/* ── Festival title inside header ─────────────────────────────────────────── */
-.fest-label{
-  font-family:Arial,sans-serif;
-  font-size:11px;letter-spacing:4px;text-transform:uppercase;
-  color:#d4af37;margin-bottom:10px;
-}
-.trophy{font-size:48px;line-height:1;margin-bottom:8px}
-.award-badge{
-  background:linear-gradient(135deg,#d4af37,#f5e27a,#d4af37);
-  color:#0a0a1a;
-  font-family:Arial,sans-serif;
-  font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
-  padding:6px 24px;border-radius:20px;
-}
-
 /* ── Recipient banner ─────────────────────────────────────────────────────── */
 .recipient-band{
   background:linear-gradient(90deg,#16213e,#1a1a3e,#16213e);
@@ -149,18 +121,11 @@ body{
 <body>
 <div class="wrap">
 
-  <!-- ── Confetti + header ── -->
-  <div class="confetti-zone">
-    <img src="cid:confetti_header"
-         alt=""
-         width="640"
-         style="display:block;width:100%;height:220px;object-fit:cover;position:absolute;top:0;left:0;z-index:0"/>
-    <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%">
-      <div class="fest-label">Global Visionaries Film Festival</div>
-      <div class="trophy">🏆</div>
-      <div class="award-badge">✦ Award Winner ✦</div>
-    </div>
-  </div>
+  <!-- ── Confetti header (single image — fully pre-rendered, no CSS tricks) ── -->
+  <img src="cid:confetti_header"
+       alt="Global Visionaries Film Festival — Award Winner"
+       width="640"
+       style="display:block;width:100%;max-width:640px;border:0;outline:none;text-decoration:none"/>
 
   <!-- ── Recipient banner ── -->
   <div class="recipient-band">
