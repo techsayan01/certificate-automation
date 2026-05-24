@@ -21,6 +21,13 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+
+def _has_scopes(creds: Credentials, required: list[str]) -> bool:
+    """Return True if the credentials cover all required scopes."""
+    granted = set(getattr(creds, "scopes", None) or [])
+    return all(s in granted for s in required)
+
+
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.send",
     "https://www.googleapis.com/auth/gmail.settings.basic",   # needed to read signature
@@ -49,6 +56,11 @@ def get_gmail_credentials() -> Credentials:
     # Load saved token if it exists
     if os.path.exists(Config.GMAIL_TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(Config.GMAIL_TOKEN_FILE, SCOPES)
+
+    # Force re-auth if token is missing any required scope
+    if creds and not _has_scopes(creds, SCOPES):
+        logger.info("Token is missing required scopes — re-authorising…")
+        creds = None
 
     # Refresh or re-authorize as needed
     if not creds or not creds.valid:

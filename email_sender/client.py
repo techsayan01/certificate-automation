@@ -1,17 +1,22 @@
 """
-EmailClient — builds a MIME multipart message and sends it via the Gmail API.
+EmailClient — sends emails via Gmail API using proper MIME structure:
 
-Every email includes:
-  - Rendered HTML body (Jinja2 template)
-  - Gmail account signature injected automatically
-  - Certificate PDF as an attachment
-  - Any extra attachments (e.g. laurel PNG) configured in attachments.json
+  multipart/mixed
+    multipart/related          ← HTML body + CID inline images (e.g. confetti header)
+      text/html
+      image/png  (Content-ID: <confetti_header>)
+    application/pdf            ← certificate attachment
+    image/png                  ← laurel / extra attachments
+
+CID images are referenced in HTML as  <img src="cid:confetti_header">
+and travel inside the email — no external hosting, no base64 data URIs.
 """
 
 import base64
+import json
 import os
 from email.mime.application import MIMEApplication
-from email.mime.base import MIMEBase
+from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -33,9 +38,8 @@ def _inject_signature(html_body: str, signature_html: str) -> str:
     if not signature_html:
         return html_body
     wrapped = (
-        '<div style="font-family:Arial,sans-serif;font-size:13px;color:#555;margin-top:8px">'
-        + signature_html
-        + "</div>"
+        '<div style="font-family:Arial,sans-serif;font-size:13px;'
+        'color:#555;margin-top:8px">' + signature_html + "</div>"
     )
     if _SIG_MARKER in html_body:
         return html_body.replace(_SIG_MARKER, wrapped)
@@ -44,23 +48,32 @@ def _inject_signature(html_body: str, signature_html: str) -> str:
     return html_body + wrapped
 
 
-def _mime_attachment(file_path: str) -> MIMEBase:
-    """Build a MIME part for any file type based on its extension."""
-    path = Path(file_path)
-    ext  = path.suffix.lower()
+def _load_inline_images() -> dict[str, str]:
+    """
+    Load inline_images.json from the project's templates folder.
+    Returns {cid_name: absolute_file_path}.
+    """
+    map_path = Path(Config.PROJECT_TEMPLATE_DIR) / "inline_images.json"
+    if not map_path.exists():
+        return {}
+    with open(map_path) as fh:
+        raw = json.load(fh)          # { "confetti_header": "assets/confetti_header.png" }
+    project_root = Path(f"projects/{Config.PROJECT}")
+    return {
+        cid: str(project_root / rel_path)
+        for cid, rel_path in raw.items()
+    }
 
+
+def _mime_file(file_path: str) -> MIMEApplication:
+    """Regular (downloadable) attachment for any file type."""
     with open(file_path, "rb") as fh:
         data = fh.read()
-
-    if ext == ".pdf":
-        part = MIMEApplication(data, _subtype="pdf")
-    elif ext in (".png", ".jpg", ".jpeg"):
-        subtype = "jpeg" if ext in (".jpg", ".jpeg") else "png"
-        part = MIMEApplication(data, _subtype=subtype)
-    else:
-        part = MIMEApplication(data, _subtype="octet-stream")
-
-    part.add_header("Content-Disposition", "attachment", filename=path.name)
+    ext  = Path(file_path).suffix.lower()
+    sub  = {"pdf": "pdf", ".png": "png", ".jpg": "jpeg"}.get(ext, "octet-stream")
+    part = MIMEApplication(data, _subtype=sub)
+    part.add_header("Content-Disposition", "attachment",
+                    filename=Path(file_path).name)
     return part
 
 
@@ -79,46 +92,57 @@ class EmailClient:
         attachment_path: str,
         extra_attachments: list[str] | None = None,
     ) -> None:
-        """
-        Compose and send one email.
+        final_body    = _inject_signature(html_body, self._signature)
+        inline_images = _load_inline_images()   # {cid: path}
 
-        Args:
-            to_email:          Recipient email address.
-            to_name:           Recipient display name.
-            subject:           Email subject line.
-            html_body:         Rendered HTML body.
-            attachment_path:   Certificate PDF path (always attached).
-            extra_attachments: Additional files to attach (e.g. laurel PNG).
-        """
-        final_body = _inject_signature(html_body, self._signature)
+        # ── root: multipart/mixed ────────────────────────────────────────────
+        root = MIMEMultipart("mixed")
+        root["To"]      = f"{to_name} <{to_email}>"
+        root["From"]    = f"{Config.EMAIL_FROM_NAME} <me>"
+        root["Subject"] = subject
 
-        msg = MIMEMultipart("mixed")
-        msg["To"]      = f"{to_name} <{to_email}>"
-        msg["From"]    = f"{Config.EMAIL_FROM_NAME} <me>"
-        msg["Subject"] = subject
+        # ── inner: multipart/related (HTML + CID inline images) ─────────────
+        related = MIMEMultipart("related")
 
-        # ── HTML body ─────────────────────────────────────────────────────────
-        msg.attach(MIMEText(final_body, "html", "utf-8"))
+        html_part = MIMEText(final_body, "html", "utf-8")
+        related.attach(html_part)
 
-        # ── Certificate PDF ───────────────────────────────────────────────────
+        for cid, img_path in inline_images.items():
+            if not os.path.exists(img_path):
+                logger.warning(f"Inline image not found, skipping: {img_path}")
+                continue
+            with open(img_path, "rb") as fh:
+                img_data = fh.read()
+            img_part = MIMEImage(img_data)
+            img_part.add_header("Content-ID", f"<{cid}>")
+            img_part.add_header("Content-Disposition", "inline",
+                                filename=Path(img_path).name)
+            related.attach(img_part)
+            logger.debug(f"  Inline image attached: cid:{cid} → {img_path}")
+
+        root.attach(related)
+
+        # ── certificate PDF ──────────────────────────────────────────────────
         if not os.path.exists(attachment_path):
             raise FileNotFoundError(f"Certificate PDF not found: {attachment_path}")
-        msg.attach(_mime_attachment(attachment_path))
+        root.attach(_mime_file(attachment_path))
 
-        # ── Extra attachments (laurel, etc.) ──────────────────────────────────
+        # ── extra attachments (laurel PNG, etc.) ─────────────────────────────
         for extra in (extra_attachments or []):
             full_path = Path(f"projects/{Config.PROJECT}") / extra
             if full_path.exists():
-                msg.attach(_mime_attachment(str(full_path)))
-                logger.debug(f"  Attached extra file: {full_path.name}")
+                root.attach(_mime_file(str(full_path)))
+                logger.debug(f"  Extra attachment: {full_path.name}")
             else:
-                logger.warning(f"  Extra attachment not found, skipping: {full_path}")
+                logger.warning(f"  Extra attachment not found: {full_path}")
 
-        # ── Send ──────────────────────────────────────────────────────────────
-        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        # ── send ─────────────────────────────────────────────────────────────
+        raw = base64.urlsafe_b64encode(root.as_bytes()).decode()
         try:
             self._service.users().messages().send(
                 userId="me", body={"raw": raw}
             ).execute()
         except HttpError as exc:
-            raise RuntimeError(f"Gmail API error sending to {to_email}: {exc}") from exc
+            raise RuntimeError(
+                f"Gmail API error sending to {to_email}: {exc}"
+            ) from exc
