@@ -14,6 +14,7 @@ from __future__ import annotations
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from config import Config
 from email_sender.auth import get_gmail_credentials
 from utils.logger import get_logger
 
