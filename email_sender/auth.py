@@ -21,7 +21,10 @@ from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+SCOPES = [
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.settings.basic",   # needed to read signature
+]
 
 
 def _client_config() -> dict:
