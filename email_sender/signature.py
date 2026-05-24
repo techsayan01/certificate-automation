@@ -34,11 +34,15 @@ def get_signature(project: str) -> str:
         creds   = get_gmail_credentials()
         service = build("gmail", "v1", credentials=creds)
 
+        # Fetch the primary sendAs address (the authenticated account's own address)
+        profile      = service.users().getProfile(userId="me").execute()
+        sender_email = profile.get("emailAddress", "me")
+
         result  = (
             service.users()
                    .settings()
                    .sendAs()
-                   .get(userId="me", sendAsEmail="me")
+                   .get(userId="me", sendAsEmail=sender_email)
                    .execute()
         )
         sig_html = result.get("signature", "")
