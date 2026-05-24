@@ -1,0 +1,8 @@
+.env
+*.json
+!email_sender/templates/category_map.json
+data/output/
+__pycache__/
+*.pyc
+.venv/
+venv/

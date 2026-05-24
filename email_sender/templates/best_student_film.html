@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Best Student Film Certificate</title>
+  <style>
+    body { font-family: Georgia, serif; background: #fafafa; margin: 0; padding: 0; }
+    .wrapper { max-width: 600px; margin: 40px auto; background: #ffffff;
+               border-radius: 8px; overflow: hidden;
+               box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header  { background: #2c3e50; color: #f1c40f; padding: 32px 40px; text-align: center; }
+    .header h1 { margin: 0; font-size: 22px; letter-spacing: 2px; text-transform: uppercase; }
+    .header p  { margin: 8px 0 0; color: #ecf0f1; font-size: 14px; }
+    .body    { padding: 32px 40px; color: #2c3e50; line-height: 1.8; }
+    .body h2 { color: #2c3e50; margin-top: 0; font-size: 20px; }
+    .highlight { background: #fef9e7; border: 1px solid #f1c40f;
+                 padding: 14px 18px; border-radius: 4px; margin: 20px 0; }
+    .footer  { background: #ecf0f1; color: #7f8c8d; font-size: 12px;
+               padding: 20px 40px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <h1>🏆 Best Student Film Award</h1>
+      <p>Official Certificate of Recognition</p>
+    </div>
+    <div class="body">
+      <h2>Dear {{ name }},</h2>
+      <p>
+        On behalf of the entire festival committee, we are thrilled to present
+        you with the <strong>Best Student Film</strong> recognition for your
+        outstanding submission.
+      </p>
+      <div class="highlight">
+        <strong>Film / Project:</strong> {{ project }}<br />
+        <strong>Award Category:</strong> {{ category }}
+      </div>
+      <p>
+        Your work stood out among this year's submissions for its vision,
+        craft, and storytelling. We hope this recognition encourages you to
+        continue pursuing your passion in filmmaking.
+      </p>
+      <p>
+        Your certificate is attached to this email as a PDF. We encourage you
+        to share this achievement proudly.
+      </p>
+      <p>With admiration,<br /><strong>The Festival Jury</strong></p>
+    </div>
+    <div class="footer">
+      This is an automated certificate delivery. Please do not reply to this email.
+    </div>
+  </div>
+</body>
+</html>
