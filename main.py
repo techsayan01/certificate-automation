@@ -22,6 +22,7 @@ from csv_reader.reader import CSVReader
 from canva.design import CanvaDesignManager
 from email_sender.client import EmailClient
 from email_sender.template_manager import TemplateManager
+from email_sender.attachment_manager import AttachmentManager
 from utils.logger import get_logger
 
 logger = get_logger("pipeline")
@@ -107,7 +108,8 @@ def main() -> None:
 
     # ── setup clients ─────────────────────────────────────────────────────────
     canva = CanvaDesignManager()
-    template_manager = TemplateManager()
+    template_manager    = TemplateManager()
+    attachment_manager  = AttachmentManager()
     email_client: EmailClient | None = None
 
     if not dry_run:
@@ -156,6 +158,7 @@ def main() -> None:
                     subject=Config.EMAIL_SUBJECT,
                     html_body=html_body,
                     attachment_path=str(pdf_path),
+                    extra_attachments=attachment_manager.get(category),
                 )
                 logger.info(f"  Email sent ✓")
                 sent += 1

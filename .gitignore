@@ -6,11 +6,13 @@ canva_token.json
 gmail_token.json
 credentials.json
 
-# Keep example and template files
+# Keep example, template and asset files
 !.env.example
 !projects/project_name.env.example
 !projects/**/templates/
 !projects/**/templates/**
+!projects/**/assets/
+!projects/**/assets/**
 
 # Output
 data/output/
