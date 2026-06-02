@@ -48,6 +48,17 @@ class Settings(BaseSettings):
     INITIAL_ADMIN_EMAIL: str    = ""
     INITIAL_ADMIN_PASSWORD: str = ""
 
+    # ── Canva — global integration (one Cert-Automate app powers all festivals) ─
+    CANVA_CLIENT_ID:     str = ""
+    CANVA_CLIENT_SECRET: str = ""
+    CANVA_AUTH_URL:      str = "https://www.canva.com/api/oauth/authorize"
+    CANVA_TOKEN_URL:     str = "https://api.canva.com/rest/v1/oauth/token"
+    CANVA_API_BASE:      str = "https://api.canva.com/rest/v1"
+    CANVA_SCOPES:        str = "design:meta:read design:content:read design:content:write"
+
+    # ── Local storage for laurel uploads (Phase 2). GCS in Phase 3. ──────────
+    LAUREL_STORAGE_DIR:  str = "backend/data/laurels"
+
 
 @lru_cache
 def get_settings() -> Settings:

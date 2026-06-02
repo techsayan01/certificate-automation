@@ -30,7 +30,11 @@ from backend.app.auth.service import (
 from backend.app.db.client import MongoDB
 from backend.app.db.models import UserRole, utc_now
 from backend.app.routes.admin import router as admin_router
+from backend.app.routes.admin_users import router as admin_users_router
 from backend.app.routes.auth import router as auth_router
+from backend.app.routes.festival import router as festival_router
+from backend.app.routes.oauth import router as oauth_router
+from backend.app.routes.templates_crud import router as templates_router
 from backend.app.settings import get_settings
 
 
@@ -73,6 +77,10 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="backend/app/static"), name="static")
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(admin_users_router)
+app.include_router(festival_router)
+app.include_router(templates_router)
+app.include_router(oauth_router)
 
 
 # ── Custom exception handler — turn _LoginRedirect into an actual redirect ───

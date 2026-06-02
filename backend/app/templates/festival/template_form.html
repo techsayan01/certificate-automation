@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ 'New' if mode == 'create' else 'Edit' }} template{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ 'New' if mode == 'create' else 'Edit' }} certificate template</h1>
+  <a href="/festival/templates" class="btn">← Back</a>
+</div>
+
+<form method="post" enctype="multipart/form-data"
+      action="{% if mode == 'create' %}/festival/templates{% else %}/festival/templates/{{ template.id }}{% endif %}"
+      class="card">
+
+  <h3>What does this template cover?</h3>
+
+  <label>Category
+    <input type="text" name="category" required
+           value="{{ template.category if template else '' }}"
+           placeholder="Best Short Film (Main Category)"/>
+    <small class="muted">Must match the category name in your CSV exactly.</small>
+  </label>
+
+  <label>Judging status
+    <select name="judging_status" required>
+      <option value="">— select —</option>
+      {% for s in statuses %}
+        <option value="{{ s }}" {% if template and template.judging_status == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+    <small class="muted">A different template will be used per status (e.g. Award Winner vs Finalist).</small>
+  </label>
+
+  <h3>Canva</h3>
+
+  <label>Brand template ID
+    <input type="text" name="canva_brand_template_id" required
+           value="{{ template.canva_brand_template_id if template else '' }}"
+           placeholder="EAHLaNo-EXU"/>
+    <small class="muted">From the URL: canva.com/brand/brand-templates/<strong>&lt;id&gt;</strong></small>
+  </label>
+
+  <label>Field map (JSON)
+    {% if template %}
+      {% set fm = template.canva_field_map %}
+    {% else %}
+      {% set fm = default_field_map %}
+    {% endif %}
+    <textarea name="canva_field_map_json"
+              placeholder='{"name": "Name", "project": "Project", "category": "Category", "season": "Season", "season_date": "SeasonDate"}'>{{ fm | tojson(indent=2) }}</textarea>
+    <small class="muted">Maps internal field names (left) to the Canva placeholder name (right). Internal names must include: name, project, category, season, season_date.</small>
+  </label>
+
+  <h3>Email body</h3>
+
+  <label>HTML template
+    <textarea name="email_template_html" rows="16"
+              placeholder="<p>Dear {{ name }},</p><p>Congratulations on your {{ category }} at {{ season }}!</p>">{{ template.email_template_html if template else '' }}</textarea>
+    <small class="muted">Jinja2 variables available: <code>{{ '{{ name }}' }}</code>, <code>{{ '{{ project }}' }}</code>, <code>{{ '{{ category }}' }}</code>, <code>{{ '{{ season }}' }}</code>, <code>{{ '{{ season_date }}' }}</code>, <code>{{ '{{ email }}' }}</code>.</small>
+  </label>
+
+  {% if mode == 'edit' %}
+  <div style="margin: 8px 0 14px;">
+    <button type="button" class="btn" id="preview-btn">Preview email body</button>
+    <iframe id="preview-frame" style="width:100%; height:0; border:1px solid #e5e7eb; border-radius:6px; margin-top:8px;"></iframe>
+  </div>
+  <script>
+    document.getElementById("preview-btn").addEventListener("click", async () => {
+      const r = await fetch("/festival/templates/{{ template.id }}/preview", { method: "POST" });
+      const html = await r.text();
+      const f = document.getElementById("preview-frame");
+      f.srcdoc = html;
+      f.style.height = "480px";
+    });
+  </script>
+  {% endif %}
+
+  <h3>Laurel image</h3>
+
+  <label>Laurel PNG
+    <input type="file" name="laurel" accept="image/png,image/jpeg"/>
+    {% if template and template.laurel_path %}
+      <small class="muted">A laurel is already uploaded. Choose a new file to replace it.</small>
+    {% else %}
+      <small class="muted">Attached to the email alongside the certificate.</small>
+    {% endif %}
+  </label>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">
+      {{ 'Create template' if mode == 'create' else 'Save changes' }}
+    </button>
+    <a href="/festival/templates" class="btn">Cancel</a>
+  </div>
+</form>
+
+<style>
+  .form-actions { margin-top: 24px; display: flex; gap: 12px; }
+  h3 { margin: 24px 0 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;
+       font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; }
+  h3:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+</style>
+{% endblock %}
