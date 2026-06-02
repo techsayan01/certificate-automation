@@ -1,0 +1,12 @@
+{
+  "_comment": "Maps each award category to a Canva Brand Template ID. Categories not listed here fall back to CANVA_BRAND_TEMPLATE_ID in .env. Publish each certificate design as a Brand Template in Canva (Brand Kit → Templates) and paste the ID from the URL.",
+
+  "Award Winner":                      "EAHLaNo-EXU",
+  "Best Student Film (Main Category)": "EAHLaNo-EXU",
+  "Best Student Film":                 "EAHLaNo-EXU",
+  "Best Documentary":                  "EAHLaNo-EXU",
+  "Best Short Film":                   "EAHLaNo-EXU",
+  "Best Feature Film":                 "EAHLaNo-EXU",
+  "Best Experimental":                 "EAHLaNo-EXU",
+  "Best Music Video":                  "EAHLaNo-EXU"
+}

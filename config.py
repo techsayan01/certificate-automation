@@ -25,15 +25,17 @@ class Config:
     CANVA_NAME_FIELD: str          = "Name"
     CANVA_PROJECT_FIELD: str       = "Project"
     CANVA_CATEGORY_FIELD: str      = "Category"
-    CANVA_REDIRECT_URI: str        = "http://localhost:8080/callback"
+    CANVA_SEASON_FIELD: str        = "Season"
+    CANVA_SEASON_DATE_FIELD: str   = "SeasonDate"
+    CANVA_REDIRECT_URI: str        = "http://127.0.0.1:8080/callback"
     CANVA_TOKEN_FILE: str          = "canva_token.json"
     CANVA_REQUEST_DELAY: float     = 1.0
     CANVA_POLL_INTERVAL: float     = 3.0
     CANVA_POLL_TIMEOUT: int        = 180
     CANVA_AUTH_URL: str            = "https://www.canva.com/api/oauth/authorize"
-    CANVA_TOKEN_URL: str           = "https://www.canva.com/api/oauth/token"
+    CANVA_TOKEN_URL: str           = "https://api.canva.com/rest/v1/oauth/token"
     CANVA_API_BASE: str            = "https://api.canva.com/rest/v1"
-    CANVA_SCOPES: str              = "design:content:read design:content:write asset:read asset:write"
+    CANVA_SCOPES: str              = "design:meta:read design:content:read design:content:write"
 
     # ── Gmail (per-project) ────────────────────────────────────────────────────
     GMAIL_CLIENT_ID: str           = ""
@@ -56,6 +58,42 @@ class Config:
     CSV_PROJECT_COL: str           = "Project Title"
     CSV_CATEGORY_COL: str          = "Submission Categories"
     CSV_FILTER_STATUS: str         = ""
+
+    # ── Certificate generation (Pillow) — per-project ─────────────────────────
+    CERT_TEMPLATE_PATH: str        = ""      # projects/<name>/assets/certificate_template.png
+    CERT_FONT_PATH: str            = ""      # path to .ttf — blank = auto-detect
+
+    CERT_NAME_X: int               = 0
+    CERT_NAME_Y: int               = 0
+    CERT_NAME_MAX_WIDTH: int       = 900
+    CERT_NAME_FONT_SIZE: int       = 80
+    CERT_NAME_COLOR: str           = "#00D4FF"   # cyan
+
+    CERT_PROJECT_X: int            = 0
+    CERT_PROJECT_Y: int            = 0
+    CERT_PROJECT_MAX_WIDTH: int    = 700
+    CERT_PROJECT_FONT_SIZE: int    = 36
+    CERT_PROJECT_COLOR: str        = "#FFFFFF"
+
+    CERT_CATEGORY_X: int           = 0
+    CERT_CATEGORY_Y: int           = 0
+    CERT_CATEGORY_MAX_WIDTH: int   = 700
+    CERT_CATEGORY_FONT_SIZE: int   = 36
+    CERT_CATEGORY_COLOR: str       = "#FFFFFF"
+
+    CERT_SEASON_TEXT: str          = ""      # e.g. "Season 5"
+    CERT_SEASON_X: int             = 0
+    CERT_SEASON_Y: int             = 0
+    CERT_SEASON_MAX_WIDTH: int     = 300
+    CERT_SEASON_FONT_SIZE: int     = 36
+    CERT_SEASON_COLOR: str         = "#FFFFFF"
+
+    CERT_SEASON_DATE_TEXT: str     = ""      # e.g. "Sep - Jan 2026"
+    CERT_SEASON_DATE_X: int        = 0
+    CERT_SEASON_DATE_Y: int        = 0
+    CERT_SEASON_DATE_MAX_WIDTH: int = 300
+    CERT_SEASON_DATE_FONT_SIZE: int = 28
+    CERT_SEASON_DATE_COLOR: str    = "#AAAAAA"
 
     # ── Misc ───────────────────────────────────────────────────────────────────
     OUTPUT_DIR: str                = "data/output"
@@ -111,6 +149,8 @@ class Config:
         cls.CANVA_NAME_FIELD         = e.get("CANVA_NAME_FIELD", cls.CANVA_NAME_FIELD)
         cls.CANVA_PROJECT_FIELD      = e.get("CANVA_PROJECT_FIELD", cls.CANVA_PROJECT_FIELD)
         cls.CANVA_CATEGORY_FIELD     = e.get("CANVA_CATEGORY_FIELD", cls.CANVA_CATEGORY_FIELD)
+        cls.CANVA_SEASON_FIELD       = e.get("CANVA_SEASON_FIELD", cls.CANVA_SEASON_FIELD)
+        cls.CANVA_SEASON_DATE_FIELD  = e.get("CANVA_SEASON_DATE_FIELD", cls.CANVA_SEASON_DATE_FIELD)
         cls.CANVA_REDIRECT_URI       = e.get("CANVA_REDIRECT_URI", cls.CANVA_REDIRECT_URI)
         cls.CANVA_TOKEN_FILE         = e.get("CANVA_TOKEN_FILE", cls.CANVA_TOKEN_FILE)
         cls.CANVA_REQUEST_DELAY      = float(e.get("CANVA_REQUEST_DELAY_SECONDS", cls.CANVA_REQUEST_DELAY))
@@ -144,6 +184,37 @@ class Config:
         cls.CSV_PROJECT_COL          = e.get("CSV_PROJECT_COL", cls.CSV_PROJECT_COL)
         cls.CSV_CATEGORY_COL         = e.get("CSV_CATEGORY_COL", cls.CSV_CATEGORY_COL)
         cls.CSV_FILTER_STATUS        = e.get("CSV_FILTER_STATUS", cls.CSV_FILTER_STATUS)
+
+        # Certificate (Pillow)
+        cls.CERT_TEMPLATE_PATH       = e.get("CERT_TEMPLATE_PATH", cls.CERT_TEMPLATE_PATH)
+        cls.CERT_FONT_PATH           = e.get("CERT_FONT_PATH", cls.CERT_FONT_PATH)
+        cls.CERT_NAME_X              = int(e.get("CERT_NAME_X", cls.CERT_NAME_X))
+        cls.CERT_NAME_Y              = int(e.get("CERT_NAME_Y", cls.CERT_NAME_Y))
+        cls.CERT_NAME_MAX_WIDTH      = int(e.get("CERT_NAME_MAX_WIDTH", cls.CERT_NAME_MAX_WIDTH))
+        cls.CERT_NAME_FONT_SIZE      = int(e.get("CERT_NAME_FONT_SIZE", cls.CERT_NAME_FONT_SIZE))
+        cls.CERT_NAME_COLOR          = e.get("CERT_NAME_COLOR", cls.CERT_NAME_COLOR)
+        cls.CERT_PROJECT_X           = int(e.get("CERT_PROJECT_X", cls.CERT_PROJECT_X))
+        cls.CERT_PROJECT_Y           = int(e.get("CERT_PROJECT_Y", cls.CERT_PROJECT_Y))
+        cls.CERT_PROJECT_MAX_WIDTH   = int(e.get("CERT_PROJECT_MAX_WIDTH", cls.CERT_PROJECT_MAX_WIDTH))
+        cls.CERT_PROJECT_FONT_SIZE   = int(e.get("CERT_PROJECT_FONT_SIZE", cls.CERT_PROJECT_FONT_SIZE))
+        cls.CERT_PROJECT_COLOR       = e.get("CERT_PROJECT_COLOR", cls.CERT_PROJECT_COLOR)
+        cls.CERT_CATEGORY_X          = int(e.get("CERT_CATEGORY_X", cls.CERT_CATEGORY_X))
+        cls.CERT_CATEGORY_Y          = int(e.get("CERT_CATEGORY_Y", cls.CERT_CATEGORY_Y))
+        cls.CERT_CATEGORY_MAX_WIDTH  = int(e.get("CERT_CATEGORY_MAX_WIDTH", cls.CERT_CATEGORY_MAX_WIDTH))
+        cls.CERT_CATEGORY_FONT_SIZE  = int(e.get("CERT_CATEGORY_FONT_SIZE", cls.CERT_CATEGORY_FONT_SIZE))
+        cls.CERT_CATEGORY_COLOR      = e.get("CERT_CATEGORY_COLOR", cls.CERT_CATEGORY_COLOR)
+        cls.CERT_SEASON_TEXT         = e.get("CERT_SEASON_TEXT", cls.CERT_SEASON_TEXT)
+        cls.CERT_SEASON_X            = int(e.get("CERT_SEASON_X", cls.CERT_SEASON_X))
+        cls.CERT_SEASON_Y            = int(e.get("CERT_SEASON_Y", cls.CERT_SEASON_Y))
+        cls.CERT_SEASON_MAX_WIDTH    = int(e.get("CERT_SEASON_MAX_WIDTH", cls.CERT_SEASON_MAX_WIDTH))
+        cls.CERT_SEASON_FONT_SIZE    = int(e.get("CERT_SEASON_FONT_SIZE", cls.CERT_SEASON_FONT_SIZE))
+        cls.CERT_SEASON_COLOR        = e.get("CERT_SEASON_COLOR", cls.CERT_SEASON_COLOR)
+        cls.CERT_SEASON_DATE_TEXT    = e.get("CERT_SEASON_DATE_TEXT", cls.CERT_SEASON_DATE_TEXT)
+        cls.CERT_SEASON_DATE_X       = int(e.get("CERT_SEASON_DATE_X", cls.CERT_SEASON_DATE_X))
+        cls.CERT_SEASON_DATE_Y       = int(e.get("CERT_SEASON_DATE_Y", cls.CERT_SEASON_DATE_Y))
+        cls.CERT_SEASON_DATE_MAX_WIDTH = int(e.get("CERT_SEASON_DATE_MAX_WIDTH", cls.CERT_SEASON_DATE_MAX_WIDTH))
+        cls.CERT_SEASON_DATE_FONT_SIZE = int(e.get("CERT_SEASON_DATE_FONT_SIZE", cls.CERT_SEASON_DATE_FONT_SIZE))
+        cls.CERT_SEASON_DATE_COLOR   = e.get("CERT_SEASON_DATE_COLOR", cls.CERT_SEASON_DATE_COLOR)
 
         # Misc
         cls.OUTPUT_DIR               = e.get("OUTPUT_DIR", cls.OUTPUT_DIR)

@@ -1,86 +1,123 @@
 """
-Coordinate preview tool — run this once to figure out where to place
-Name / Project / Category text on your certificate template.
+Certificate position calibration tool.
+
+Draws a coordinate grid + current field positions on the template so you can
+tune CERT_NAME_X / CERT_NAME_Y etc. in .env until the markers sit exactly
+where the text should appear.
 
 Usage:
-    python canva/preview.py
+    python canva/preview.py --project GVFF
 
-Opens (or saves) an annotated version of your certificate template with:
-  - A red crosshair grid every 100px
-  - Pixel coordinates labelled at each grid intersection
-  - The current Name / Project / Category positions drawn in green
-
-Adjust CERT_NAME_X, CERT_NAME_Y etc. in .env until the green labels
-sit exactly where you want the text to appear, then run the full pipeline.
+Output: data/output/cert_preview.png   (also opens automatically)
 """
 
+import argparse
 import sys
 from pathlib import Path
 
-# Allow running from project root
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from PIL import Image, ImageDraw, ImageFont
 from config import Config
 
 
+def _font(size: int) -> ImageFont.FreeTypeFont:
+    for path in [
+        "/System/Library/Fonts/HelveticaNeue.ttc",
+        "/System/Library/Fonts/ArialHB.ttc",
+        "/Library/Fonts/Arial Bold.ttf",
+    ]:
+        try:
+            return ImageFont.truetype(path, size)
+        except Exception:
+            continue
+    return ImageFont.load_default()
+
+
 def main():
-    template = Config.CERT_TEMPLATE_PATH
-    try:
-        img = Image.open(template).convert("RGBA")
-    except FileNotFoundError:
-        print(f"[ERROR] Template not found: {template}")
-        print("Export your blank Canva certificate as PNG and set CERT_TEMPLATE_PATH in .env")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--project",  required=True)
+    parser.add_argument("--template", default=None,
+                        help="Template PNG filename (without path), e.g. certificate_finalist.png. "
+                             "Defaults to CERT_TEMPLATE_PATH in .env.")
+    args = parser.parse_args()
+
+    Config.load(args.project)
+
+    if args.template:
+        template = f"projects/{args.project}/assets/{args.template}"
+    else:
+        template = Config.CERT_TEMPLATE_PATH
+
+    if not template or not Path(template).exists():
+        print(f"\n[ERROR] Template not found: {template}")
+        print(f"Export your blank certificate from Canva as PNG and place it in:")
+        print(f"  projects/{args.project}/assets/")
+        print(f"Then pass it with: --template certificate_award_winner.png\n")
         sys.exit(1)
 
+    img  = Image.open(template).convert("RGBA")
     draw = ImageDraw.Draw(img)
-    w, h = img.size
+    W, H = img.size
 
-    # ── grid ──────────────────────────────────────────────────────────────────
-    try:
-        small = ImageFont.truetype(Config.CERT_FONT_PATH, 14)
-    except Exception:
-        small = ImageFont.load_default()
+    print(f"\nTemplate : {template}")
+    print(f"Size     : {W} × {H} px")
 
-    step = 100
-    for x in range(0, w, step):
-        draw.line([(x, 0), (x, h)], fill=(200, 0, 0, 80), width=1)
-    for y in range(0, h, step):
-        draw.line([(0, y), (w, y)], fill=(200, 0, 0, 80), width=1)
-    for x in range(0, w, step):
-        for y in range(0, h, step):
-            draw.text((x + 2, y + 2), f"{x},{y}", fill=(200, 0, 0, 200), font=small)
+    # ── red coordinate grid every 100px ──────────────────────────────────────
+    small = _font(16)
+    step  = 100
+    for x in range(0, W, step):
+        draw.line([(x, 0), (x, H)], fill=(220, 0, 0, 60), width=1)
+    for y in range(0, H, step):
+        draw.line([(0, y), (W, y)], fill=(220, 0, 0, 60), width=1)
+    for x in range(0, W, step):
+        for y in range(0, H, step):
+            draw.text((x + 3, y + 3), f"{x},{y}", font=small, fill=(220, 0, 0, 180))
 
-    # ── current field positions ───────────────────────────────────────────────
+    # ── green markers for current field positions ─────────────────────────────
     fields = [
-        ("NAME",     Config.CERT_NAME_X,     Config.CERT_NAME_Y,     "Alice Johnson"),
-        ("PROJECT",  Config.CERT_PROJECT_X,  Config.CERT_PROJECT_Y,  "Hunting Fireflies"),
-        ("CATEGORY", Config.CERT_CATEGORY_X, Config.CERT_CATEGORY_Y, "Best Student Film"),
+        ("NAME",     Config.CERT_NAME_X,     Config.CERT_NAME_Y,
+         Config.CERT_NAME_MAX_WIDTH,
+         f"← Name ({Config.CERT_NAME_X},{Config.CERT_NAME_Y}) "
+         f"max_w={Config.CERT_NAME_MAX_WIDTH} sz={Config.CERT_NAME_FONT_SIZE}"),
+        ("PROJECT",  Config.CERT_PROJECT_X,  Config.CERT_PROJECT_Y,
+         Config.CERT_PROJECT_MAX_WIDTH,
+         f"← Project ({Config.CERT_PROJECT_X},{Config.CERT_PROJECT_Y}) "
+         f"max_w={Config.CERT_PROJECT_MAX_WIDTH} sz={Config.CERT_PROJECT_FONT_SIZE}"),
+        ("CATEGORY", Config.CERT_CATEGORY_X, Config.CERT_CATEGORY_Y,
+         Config.CERT_CATEGORY_MAX_WIDTH,
+         f"← Category ({Config.CERT_CATEGORY_X},{Config.CERT_CATEGORY_Y}) "
+         f"max_w={Config.CERT_CATEGORY_MAX_WIDTH} sz={Config.CERT_CATEGORY_FONT_SIZE}"),
+        ("SEASON",   Config.CERT_SEASON_X,   Config.CERT_SEASON_Y,
+         Config.CERT_SEASON_MAX_WIDTH,
+         f"← Season ({Config.CERT_SEASON_X},{Config.CERT_SEASON_Y}) "
+         f"max_w={Config.CERT_SEASON_MAX_WIDTH} sz={Config.CERT_SEASON_FONT_SIZE}"),
+        ("SEASON DATE", Config.CERT_SEASON_DATE_X, Config.CERT_SEASON_DATE_Y,
+         Config.CERT_SEASON_DATE_MAX_WIDTH,
+         f"← Season date ({Config.CERT_SEASON_DATE_X},{Config.CERT_SEASON_DATE_Y}) "
+         f"max_w={Config.CERT_SEASON_DATE_MAX_WIDTH} sz={Config.CERT_SEASON_DATE_FONT_SIZE}"),
     ]
-    for label, x, y, sample in fields:
-        try:
-            font = ImageFont.truetype(Config.CERT_FONT_PATH, 22)
-        except Exception:
-            font = ImageFont.load_default()
-        draw.text((x, y), sample, font=font, fill=(0, 180, 0, 255),
-                  anchor=Config.CERT_NAME_ANCHOR)
-        draw.ellipse([x - 6, y - 6, x + 6, y + 6], fill=(0, 200, 0, 255))
-        draw.text((x + 10, y - 20), f"← {label} ({x},{y})",
-                  font=small, fill=(0, 150, 0, 255))
 
-    # ── save / open ───────────────────────────────────────────────────────────
-    out = Path("data/output/preview.png")
+    lbl = _font(18)
+    for label, x, y, mw, info in fields:
+        if x == 0 and y == 0:
+            continue   # skip unconfigured fields
+        draw.ellipse([x-8, y-8, x+8, y+8], fill=(0, 220, 0, 220))
+        draw.line([(x, y), (x + mw, y)], fill=(0, 220, 0, 120), width=2)
+        draw.text((x + 12, y - 22), info, font=lbl, fill=(0, 220, 0, 240))
+
+    # ── save & open ───────────────────────────────────────────────────────────
+    out = Path("data/output/cert_preview.png")
     out.parent.mkdir(parents=True, exist_ok=True)
-    img.convert("RGB").save(out)
-    print(f"Preview saved → {out}")
-    print(f"Image size: {w} x {h} px")
-    print()
-    print("Current field positions (from .env):")
-    for label, x, y, _ in fields:
+    img.convert("RGB").save(str(out))
+    print(f"\nPreview saved → {out}")
+    print("\nCurrent field positions:")
+    for label, x, y, _, __ in fields:
         print(f"  {label:10s}: ({x}, {y})")
     print()
-    print("Edit CERT_NAME_X / CERT_NAME_Y etc. in .env until the green labels sit")
-    print("exactly where you want the text, then run: python main.py --dry-run")
+    print("Adjust CERT_NAME_X/Y, CERT_PROJECT_X/Y, CERT_CATEGORY_X/Y in")
+    print(f"projects/{args.project}/.env until the green dots sit correctly.")
+    print("Re-run this script after each change to see the updated positions.\n")
 
     try:
         img.show()

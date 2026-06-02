@@ -127,14 +127,21 @@ class EmailClient:
             raise FileNotFoundError(f"Certificate PDF not found: {attachment_path}")
         root.attach(_mime_file(attachment_path))
 
-        # ── extra attachments (laurel PNG, etc.) ─────────────────────────────
+        # ── extra attachments (additional certs, laurel PNG, etc.) ──────────
         for extra in (extra_attachments or []):
-            full_path = Path(f"projects/{Config.PROJECT}") / extra
-            if full_path.exists():
-                root.attach(_mime_file(str(full_path)))
-                logger.debug(f"  Extra attachment: {full_path.name}")
+            # Accept both absolute/CWD-relative paths (cert PDFs) and
+            # project-relative paths (asset files like laurels)
+            direct = Path(extra)
+            project_path = Path(f"projects/{Config.PROJECT}") / extra
+            if direct.exists():
+                full_path = direct
+            elif project_path.exists():
+                full_path = project_path
             else:
-                logger.warning(f"  Extra attachment not found: {full_path}")
+                logger.warning(f"  Extra attachment not found: {extra}")
+                continue
+            root.attach(_mime_file(str(full_path)))
+            logger.debug(f"  Extra attachment: {full_path.name}")
 
         # ── send ─────────────────────────────────────────────────────────────
         raw = base64.urlsafe_b64encode(root.as_bytes()).decode()

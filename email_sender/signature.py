@@ -7,9 +7,15 @@ The signature is whatever is configured in:
 
 It is appended automatically after the template body in every email.
 If no signature is configured, an empty string is returned silently.
+
+External <img> URLs inside the fetched signature are rewritten to use
+the CID inline image "gmail_signature" so the signature image renders
+properly inside the email (Gmail blocks external image loads by default).
 """
 
 from __future__ import annotations
+
+import re
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -22,10 +28,20 @@ logger = get_logger(__name__)
 
 _cache: dict[str, str] = {}          # project → signature HTML
 
+# Matches any <img … src="http(s)://…" …> and rewrites src to CID
+_IMG_SRC_RE = re.compile(r'(<img\b[^>]*?\bsrc=")https?://[^"]*(")', re.IGNORECASE)
+
+
+def _rewrite_img_srcs(html: str) -> str:
+    """Replace all external img src URLs with cid:gmail_signature."""
+    return _IMG_SRC_RE.sub(r'\1cid:gmail_signature\2', html)
+
 
 def get_signature(project: str) -> str:
     """
     Return the Gmail signature HTML for the currently loaded project.
+    External image URLs are rewritten to cid:gmail_signature so they
+    are served as CID inline attachments rather than blocked externals.
     Result is cached so the API is only called once per run.
     """
     if project in _cache:
@@ -52,7 +68,8 @@ def get_signature(project: str) -> str:
         sig_html = result.get("signature", "")
 
         if sig_html:
-            logger.info("Gmail signature fetched successfully.")
+            sig_html = _rewrite_img_srcs(sig_html)
+            logger.info("Gmail signature fetched successfully (external img URLs rewritten to CID).")
         else:
             logger.info("No Gmail signature configured — skipping.")
 

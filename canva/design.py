@@ -1,71 +1,67 @@
 """
-CertificateGenerator — renders certificates from a local PNG/JPG template
-using Pillow. No Canva API or credentials required.
+CanvaDesignManager — generates certificate PDFs via the Canva Autofill API.
 
-How to get your template image:
-  1. Open your certificate in Canva.
-  2. File → Download → PNG  (choose the blank version — no name/text filled in).
-  3. Save it as  data/certificate_template.png  (or set CERT_TEMPLATE_PATH in .env).
+Template resolution per category (Brand Template ID):
+  1. projects/<name>/templates/canva_templates.json  → category-specific template
+  2. CANVA_BRAND_TEMPLATE_ID in projects/<name>/.env → festival-wide default
 
-Text placement:
-  Each field (Name, Project, Category) has an (x, y) coordinate and a font size
-  defined in .env. Run  python canva/preview.py  to see a labelled preview image
-  that shows the pixel coordinates of every point — use that to dial in your values.
+Flow per recipient:
+  1. POST /autofills  — fills Name / Project / Category into the brand template
+  2. Poll until the new design is ready
+  3. POST /exports    — exports as PDF
+  4. Poll + download  → saves the PDF to output_path
 
-Single-line guarantee:
-  If the rendered text is wider than MAX_WIDTH_PX, the font size is reduced by 1pt
-  at a time until it fits.
+Field names must match the placeholders you defined in Canva.
+Defaults: CANVA_NAME_FIELD="Name", CANVA_PROJECT_FIELD="Project",
+          CANVA_CATEGORY_FIELD="Category"
+Override these in .env if your Canva field names differ.
 """
 
 from __future__ import annotations
 
-import os
+import json
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
-
+from canva.client import CanvaClient
 from config import Config
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-# ─── helpers ──────────────────────────────────────────────────────────────────
-
-def _load_font(path: str, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    if path and os.path.exists(path):
-        return ImageFont.truetype(path, size)
-    # Fall back to Pillow's built-in bitmap font (always available)
-    logger.warning(
-        f"Font not found at '{path}' — using default bitmap font. "
-        "Set CERT_FONT_PATH in .env for a proper TTF/OTF font."
-    )
-    return ImageFont.load_default()
+def _load_template_map() -> dict[str, str]:
+    """Load projects/<name>/templates/canva_templates.json if it exists."""
+    path = Path(Config.PROJECT_TEMPLATE_DIR) / "canva_templates.json"
+    if not path.exists():
+        return {}
+    with open(path) as fh:
+        data = json.load(fh)
+    return {k: v for k, v in data.items() if not k.startswith("_")}
 
 
-def _fit_text(
-    draw: ImageDraw.ImageDraw,
-    text: str,
-    font_path: str,
-    font_size: int,
-    max_width: int,
-) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Reduce font size until the text fits within max_width pixels."""
-    font = _load_font(font_path, font_size)
-    while font_size > 8:
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_width = bbox[2] - bbox[0]
-        if text_width <= max_width:
-            break
-        font_size -= 1
-        font = _load_font(font_path, font_size)
-    return font
+def _resolve_template_id(category: str) -> str:
+    """
+    Return the Brand Template ID for a given category.
+    Falls back to the project/global default if no category-specific entry.
+    """
+    template_map = _load_template_map()
+    if category in template_map:
+        tid = template_map[category]
+        logger.debug(f"  Category template: {category} → {tid}")
+        return tid
+    tid = Config.CANVA_BRAND_TEMPLATE_ID
+    if not tid:
+        raise ValueError(
+            "No Canva Brand Template ID configured. "
+            f"Set CANVA_BRAND_TEMPLATE_ID in projects/{Config.PROJECT}/.env"
+        )
+    logger.debug(f"  Default template for '{category}': {tid}")
+    return tid
 
 
-# ─── main class ───────────────────────────────────────────────────────────────
-
-class CanvaDesignManager:           # name kept so main.py needs no changes
-    """Generates certificate PDFs by compositing text onto a PNG template."""
+class CanvaDesignManager:
+    def __init__(self):
+        self._client = CanvaClient()
 
     def generate_certificate(
         self,
@@ -74,58 +70,40 @@ class CanvaDesignManager:           # name kept so main.py needs no changes
         category: str,
         output_path: str,
     ) -> str:
-        template_path = Config.CERT_TEMPLATE_PATH
-        if not os.path.exists(template_path):
-            raise FileNotFoundError(
-                f"Certificate template not found: {template_path}\n"
-                "Export your blank Canva design as PNG and set CERT_TEMPLATE_PATH in .env."
-            )
+        """
+        Generate a personalised certificate PDF for one recipient via Canva API.
+        Returns output_path.
+        """
+        brand_template_id = _resolve_template_id(category)
+        title = "Certificate_" + name.replace(" ", "_")
 
-        img = Image.open(template_path).convert("RGBA")
-        draw = ImageDraw.Draw(img)
+        # Build data payload using configured field names
+        data = {
+            Config.CANVA_NAME_FIELD:     name,
+            Config.CANVA_PROJECT_FIELD:  project,
+            Config.CANVA_CATEGORY_FIELD: category,
+        }
 
-        fields = [
-            (
-                Config.CERT_NAME_FIELD,
-                name,
-                Config.CERT_NAME_X,
-                Config.CERT_NAME_Y,
-                Config.CERT_NAME_FONT_SIZE,
-                Config.CERT_NAME_COLOR,
-                Config.CERT_NAME_ANCHOR,
-            ),
-            (
-                Config.CERT_PROJECT_FIELD,
-                project,
-                Config.CERT_PROJECT_X,
-                Config.CERT_PROJECT_Y,
-                Config.CERT_PROJECT_FONT_SIZE,
-                Config.CERT_PROJECT_COLOR,
-                Config.CERT_PROJECT_ANCHOR,
-            ),
-            (
-                Config.CERT_CATEGORY_FIELD,
-                category,
-                Config.CERT_CATEGORY_X,
-                Config.CERT_CATEGORY_Y,
-                Config.CERT_CATEGORY_FONT_SIZE,
-                Config.CERT_CATEGORY_COLOR,
-                Config.CERT_CATEGORY_ANCHOR,
-            ),
-        ]
+        # Add season fields if configured and the template has those fields
+        if Config.CERT_SEASON_TEXT and Config.CANVA_SEASON_FIELD:
+            data[Config.CANVA_SEASON_FIELD] = Config.CERT_SEASON_TEXT
+        if Config.CERT_SEASON_DATE_TEXT and Config.CANVA_SEASON_DATE_FIELD:
+            data[Config.CANVA_SEASON_DATE_FIELD] = Config.CERT_SEASON_DATE_TEXT
 
-        for field_name, text, x, y, font_size, color, anchor in fields:
-            font = _fit_text(
-                draw, text,
-                font_path=Config.CERT_FONT_PATH,
-                font_size=font_size,
-                max_width=Config.CERT_MAX_TEXT_WIDTH,
-            )
-            draw.text((x, y), text, font=font, fill=color, anchor=anchor)
-            logger.debug(f"  Drew '{field_name}': \"{text}\" at ({x}, {y})")
+        logger.info(f"  Template: {brand_template_id} | Autofilling → {title}")
+        logger.debug(f"  Fields: {list(data.keys())}")
 
-        # Save as PDF (Pillow converts PNG→PDF automatically)
-        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        rgb = img.convert("RGB")
-        rgb.save(output_path, "PDF", resolution=150)
+        # Step 1 & 2 — autofill → get design_id
+        design_id = self._client.autofill_template(
+            brand_template_id=brand_template_id,
+            title=title,
+            data=data,
+        )
+        logger.info(f"  Design ready: {design_id}")
+
+        # Step 3 & 4 — export as PDF → download
+        download_url = self._client.export_design(design_id)
+        self._client.download(download_url, output_path)
+        logger.info(f"  Certificate saved: {output_path}")
+
         return output_path
