@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Sign in — Certificate Automation{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <form method="post" action="/login" class="card login-card">
+    <h1>Sign in</h1>
+    <p class="muted">Certificate Automation Console</p>
+
+    {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+
+    <label>Email
+      <input type="email" name="email" required autofocus autocomplete="email"/>
+    </label>
+    <label>Password
+      <input type="password" name="password" required autocomplete="current-password"/>
+    </label>
+    <input type="hidden" name="next" value="{{ next }}"/>
+    <button type="submit" class="btn btn-primary">Sign in</button>
+  </form>
+</div>
+{% endblock %}
