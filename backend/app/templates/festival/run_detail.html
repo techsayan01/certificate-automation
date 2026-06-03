@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run.id }} — {{ festival.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Run dashboard</h1>
+  <a href="/festival/runs" class="btn">← All runs</a>
+</div>
+
+<div class="card" id="summary">
+  <div class="run-summary">
+    <div>
+      <div class="label">Status</div>
+      <div><span class="pill pill-{{ run.status }}" id="status-pill">{{ run.status }}</span></div>
+    </div>
+    <div>
+      <div class="label">Total</div>
+      <div class="big" id="t-total">{{ run.totals.total or 0 }}</div>
+    </div>
+    <div>
+      <div class="label">Sent</div>
+      <div class="big" id="t-sent" style="color:#065f46">{{ run.totals.sent or 0 }}</div>
+    </div>
+    <div>
+      <div class="label">Failed</div>
+      <div class="big" id="t-failed" style="color:#991b1b">{{ run.totals.failed or 0 }}</div>
+    </div>
+    <div>
+      <div class="label">Skipped</div>
+      <div class="big" id="t-skipped">{{ run.totals.skipped or 0 }}</div>
+    </div>
+    <div>
+      <div class="label">Season</div>
+      <div>{{ run.season }} <span class="muted">{{ run.season_date }}</span></div>
+    </div>
+  </div>
+
+  {% if run.status in ['queued', 'running'] %}
+    <form method="post" action="/festival/runs/{{ run.id }}/cancel" class="inline"
+          onsubmit="return confirm('Cancel this run?');" style="margin-top:14px;">
+      <button type="submit" class="btn btn-danger">Cancel run</button>
+    </form>
+  {% endif %}
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <h3 style="margin-top:0;">Activity log</h3>
+  <pre id="log" class="log">{% for entry in run.log %}{{ entry.ts.strftime('%H:%M:%S') if entry.ts else '' }} [{{ entry.level }}] {{ entry.msg }}
+{% endfor %}</pre>
+</div>
+
+<style>
+  .run-summary { display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px; }
+  .run-summary .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .run-summary .big { font-size: 22px; font-weight: 600; }
+  .log {
+    background: #0f172a; color: #d1d5db;
+    padding: 16px; border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px; line-height: 1.55;
+    max-height: 480px; overflow: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+</style>
+
+<script>
+  const RUN_ID = "{{ run.id }}";
+  const STATUS_DONE = ["done", "failed"];
+
+  function fmtTime(iso) {
+    if (!iso) return "";
+    try { return new Date(iso).toLocaleTimeString(); } catch { return iso; }
+  }
+
+  async function poll() {
+    try {
+      const r = await fetch(`/festival/runs/${RUN_ID}/status`);
+      if (!r.ok) return;
+      const data = await r.json();
+
+      const pill = document.getElementById("status-pill");
+      pill.className = "pill pill-" + data.status;
+      pill.textContent = data.status;
+
+      document.getElementById("t-total").textContent   = data.totals.total   ?? 0;
+      document.getElementById("t-sent").textContent    = data.totals.sent    ?? 0;
+      document.getElementById("t-failed").textContent  = data.totals.failed  ?? 0;
+      document.getElementById("t-skipped").textContent = data.totals.skipped ?? 0;
+
+      const logEl = document.getElementById("log");
+      logEl.textContent = (data.log || []).map(e =>
+        `${fmtTime(e.ts)} [${e.level}] ${e.msg}`
+      ).join("\n") + "\n";
+      logEl.scrollTop = logEl.scrollHeight;
+
+      if (STATUS_DONE.includes(data.status)) return;     // stop polling
+      setTimeout(poll, 3000);
+    } catch (e) {
+      setTimeout(poll, 5000);
+    }
+  }
+
+  if (!STATUS_DONE.includes("{{ run.status }}")) poll();
+</script>
+{% endblock %}
