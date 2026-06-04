@@ -56,7 +56,10 @@ steps:
       - "--cpu=1"
       - "--memory=512Mi"
       - "--min-instances=0"
-      - "--max-instances=10"
+      # max-instances=1 for now: laurel uploads land on the container's
+      # local disk, so a second instance wouldn't see them. Bump this once
+      # we migrate laurels to GCS (see infra/README.md → "Scaling up").
+      - "--max-instances=1"
       - "--timeout=3600"           # 60-minute request timeout for worker runs
       # Plain env vars
       - "--set-env-vars=ENV=production,BASE_URL=${_BASE_URL},GCP_PROJECT=${PROJECT_ID},CLOUD_TASKS_LOCATION=${_REGION},CLOUD_TASKS_QUEUE=cert-runs,CLOUD_TASKS_SA_EMAIL=cert-tasks@${PROJECT_ID}.iam.gserviceaccount.com,INITIAL_ADMIN_EMAIL=admin@example.com"
