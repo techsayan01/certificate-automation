@@ -22,13 +22,18 @@
       <td><span class="pill pill-{{ 'done' if u.role == 'admin' else 'queued' }}">{{ u.role }}</span></td>
       <td>{{ u.festival_name or '—' }}</td>
       <td class="actions">
-        {% if u.id != user.id|string %}
+        {% if u.id == user.id|string %}
+          <span class="muted">— you —</span>
+        {% elif u.role == 'admin' %}
+          {# Cannot delete other admins — they are independent peers #}
+          <span class="muted">—</span>
+        {% elif u.is_mine %}
           <form method="post" action="/admin/users/{{ u.id }}/delete" class="inline"
                 onsubmit="return confirm('Delete {{ u.email }}?');">
             <button type="submit" class="btn btn-danger">Delete</button>
           </form>
         {% else %}
-          <span class="muted">— you —</span>
+          <span class="muted">—</span>
         {% endif %}
       </td>
     </tr>
