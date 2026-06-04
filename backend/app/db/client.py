@@ -63,10 +63,10 @@ class MongoDB:
 
         await cls.festivals().create_index([("slug", ASCENDING)], unique=True)
 
-        # One template doc per (festival, category, status)
+        # One template doc per (festival, status). The same template covers
+        # every category a recipient earned at that status.
         await cls.cert_templates().create_index(
             [("festival_id", ASCENDING),
-             ("category", ASCENDING),
              ("judging_status", ASCENDING)],
             unique=True,
         )

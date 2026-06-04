@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Manage — {{ festival.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Manage</h1>
+</div>
+
+<p class="muted">Everything you need to configure before triggering a run.</p>
+
+<div class="manage-grid">
+
+  <!-- Templates -->
+  <a href="/festival/templates" class="card manage-card">
+    <div class="title">Templates</div>
+    <div class="big">{{ template_count }}</div>
+    <div class="muted">One per judging status — Award Winner, Finalist, etc.</div>
+    <div class="cta">Open templates →</div>
+  </a>
+
+  <!-- Connections -->
+  <a href="/festival/settings" class="card manage-card">
+    <div class="title">Connections</div>
+    <div class="rows">
+      <div>Gmail
+        {% if connection.gmail_connected %}
+          <span class="pill pill-done">Connected</span>
+        {% else %}
+          <span class="pill pill-queued">Not connected</span>
+        {% endif %}
+      </div>
+      <div>Canva
+        {% if connection.canva_connected %}
+          <span class="pill pill-done">Connected</span>
+        {% else %}
+          <span class="pill pill-queued">Not connected</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="cta">Settings →</div>
+  </a>
+
+  <!-- Send -->
+  <a href="/festival/send" class="card manage-card highlight">
+    <div class="title">Send certificates</div>
+    <div class="muted">Upload a CSV → run the pipeline.</div>
+    <div class="cta">Start a run →</div>
+  </a>
+
+  <!-- Runs history -->
+  <a href="/festival/runs" class="card manage-card">
+    <div class="title">Run history</div>
+    <div class="muted">See past runs and live dashboard.</div>
+    <div class="cta">Open runs →</div>
+  </a>
+
+</div>
+
+<style>
+  .manage-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .manage-card {
+    display: flex; flex-direction: column; justify-content: space-between;
+    gap: 8px;
+    color: inherit; text-decoration: none;
+    min-height: 160px;
+    transition: border-color 0.1s, box-shadow 0.1s;
+  }
+  .manage-card:hover { border-color: #2563eb; box-shadow: 0 2px 8px rgba(37,99,235,0.08); }
+  .manage-card .title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; }
+  .manage-card .big   { font-size: 32px; font-weight: 600; }
+  .manage-card .rows  { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+  .manage-card .cta   { color: #2563eb; font-size: 13px; }
+  .manage-card.highlight { border-color: #2563eb; background: #eff6ff; }
+</style>
+{% endblock %}

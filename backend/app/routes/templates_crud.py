@@ -1,15 +1,17 @@
 """
 Certificate template CRUD for festival users.
 
-Each template maps a (category, judging_status) pair to:
-  • A Canva Brand Template ID
-  • A field name map (which Canva field receives Name / Project / etc.)
-  • An HTML email template body
-  • An optional laurel image
+Each template binds a judging status (Award Winner, Finalist, ...) to:
+  • A Canva Brand Template ID — Canva fills in Name/Project/Category
+    automatically during autofill, so one template covers every category
+    that hits this status.
+  • A field name map (which Canva placeholder receives which value).
+  • An HTML email template body.
+  • An optional laurel image.
 
-The composite unique index on (festival_id, category, judging_status)
-in the DB layer prevents duplicates and gives the pipeline a 1:1 lookup
-at run time.
+The unique index on (festival_id, judging_status) means each festival
+has at most one template per status, which keeps the pipeline lookup a
+single key/value miss at send time.
 
   GET    /festival/templates                list
   GET    /festival/templates/new            create form
@@ -68,7 +70,6 @@ async def _get_template_or_404(template_id: str, festival_id: str) -> dict:
 def _to_public(doc: dict) -> dict:
     return {
         "id":                       str(doc["_id"]),
-        "category":                 doc.get("category", ""),
         "judging_status":           doc.get("judging_status", ""),
         "canva_brand_template_id":  doc.get("canva_brand_template_id", ""),
         "canva_field_map":          doc.get("canva_field_map", {}),
@@ -99,13 +100,16 @@ async def list_templates(
 ):
     fid = await _festival_id(user)
     cursor = MongoDB.cert_templates().find({"festival_id": fid}).sort(
-        [("category", 1), ("judging_status", 1)]
+        [("judging_status", 1)]
     )
     items = [_to_public(d) async for d in cursor]
+    # The set of statuses that already have a template — used by the form to
+    # disable already-used dropdown options.
+    used_statuses = {item["judging_status"] for item in items}
     return templates_renderer.TemplateResponse(
         request,
         "festival/templates_list.html",
-        _ctx(request, user, items=items),
+        _ctx(request, user, items=items, used_statuses=list(used_statuses)),
     )
 
 
@@ -116,6 +120,14 @@ async def new_template_form(
     request: Request,
     user: Annotated[UserDoc, Depends(require_festival_user)],
 ):
+    fid = await _festival_id(user)
+    # Statuses already taken — the form will grey them out in the dropdown.
+    used: list[str] = []
+    async for d in MongoDB.cert_templates().find(
+        {"festival_id": fid},
+        projection={"judging_status": 1},
+    ):
+        used.append(d.get("judging_status", ""))
     return templates_renderer.TemplateResponse(
         request,
         "festival/template_form.html",
@@ -124,6 +136,7 @@ async def new_template_form(
             template=None,
             mode="create",
             statuses=[s.value for s in JudgingStatus],
+            used_statuses=used,
             default_field_map={
                 "name":        "Name",
                 "project":     "Project",
@@ -139,7 +152,6 @@ async def new_template_form(
 async def create_template(
     request: Request,
     user: Annotated[UserDoc, Depends(require_festival_user)],
-    category:                Annotated[str, Form()],
     judging_status:          Annotated[str, Form()],
     canva_brand_template_id: Annotated[str, Form()],
     canva_field_map_json:    Annotated[str, Form()] = "{}",
@@ -170,7 +182,6 @@ async def create_template(
 
     doc = {
         "festival_id":             fid,
-        "category":                category.strip(),
         "judging_status":          judging_status,
         "canva_brand_template_id": canva_brand_template_id.strip(),
         "canva_field_map":         field_map,
@@ -185,7 +196,7 @@ async def create_template(
     except Exception as exc:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            f"A template for this category + status already exists. ({exc})",
+            f"A template for status '{judging_status}' already exists. ({exc})",
         )
 
     template_id = str(result.inserted_id)
@@ -212,6 +223,16 @@ async def edit_template_form(
 ):
     fid = await _festival_id(user)
     doc = await _get_template_or_404(template_id, fid)
+
+    # Statuses used by OTHER templates (the current one's status stays
+    # selectable so the form can pre-populate it).
+    used: list[str] = []
+    async for d in MongoDB.cert_templates().find(
+        {"festival_id": fid, "_id": {"$ne": doc["_id"]}},
+        projection={"judging_status": 1},
+    ):
+        used.append(d.get("judging_status", ""))
+
     return templates_renderer.TemplateResponse(
         request,
         "festival/template_form.html",
@@ -220,6 +241,7 @@ async def edit_template_form(
             template=_to_public(doc),
             mode="edit",
             statuses=[s.value for s in JudgingStatus],
+            used_statuses=used,
             default_field_map={},
         ),
     )
@@ -230,7 +252,6 @@ async def update_template(
     template_id: str,
     request: Request,
     user: Annotated[UserDoc, Depends(require_festival_user)],
-    category:                Annotated[str, Form()],
     judging_status:          Annotated[str, Form()],
     canva_brand_template_id: Annotated[str, Form()],
     canva_field_map_json:    Annotated[str, Form()] = "{}",
@@ -249,7 +270,6 @@ async def update_template(
                             f"canva_field_map_json invalid: {exc}")
 
     update = {
-        "category":                category.strip(),
         "judging_status":          judging_status,
         "canva_brand_template_id": canva_brand_template_id.strip(),
         "canva_field_map":         field_map,
@@ -270,7 +290,7 @@ async def update_template(
     except Exception as exc:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
-            f"Another template with the same category + status already exists. ({exc})",
+            f"Another template with status '{judging_status}' already exists. ({exc})",
         )
 
     return RedirectResponse(url="/festival/templates", status_code=status.HTTP_303_SEE_OTHER)
@@ -301,8 +321,10 @@ async def delete_template(
 
 # ── Email body preview ───────────────────────────────────────────────────────
 
-# Sample variables used when rendering the email preview. Keep these in sync
-# with what the pipeline injects into the Jinja2 context at run time.
+# Sample variables used when rendering the email preview. Keep in sync
+# with the pipeline's Jinja2 context. `category` here is the most-prestigious
+# category for the row (one row may earn multiple) — that's what's surfaced
+# in the email body.
 _PREVIEW_SAMPLE = {
     "name":        "Renato Santana",
     "project":     "Hunting Fireflies",
@@ -310,6 +332,7 @@ _PREVIEW_SAMPLE = {
     "season":      "Season 5",
     "season_date": "Sep - Jan 2026",
     "email":       "preview@example.com",
+    "status":      "Award Winner",
 }
 
 
