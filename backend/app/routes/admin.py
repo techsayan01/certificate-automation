@@ -1,18 +1,15 @@
 """
 Admin routes — festival CRUD.
 
-Each route is protected by the require_admin dependency.
+ISOLATION MODEL: each admin is independent. Every query filters on
+created_by == current_user.id so Admin 1 never sees Admin 2's data.
 
-  GET    /admin/festivals             list festivals
+  GET    /admin/festivals             list own festivals
   GET    /admin/festivals/new         create form
   POST   /admin/festivals             create
-  GET    /admin/festivals/{id}/edit   edit form
-  POST   /admin/festivals/{id}        update
-  POST   /admin/festivals/{id}/delete delete
-
-The form accepts Gmail credentials in plaintext; we encrypt the
-client_secret before persisting (refresh_token stays empty until the
-festival user runs the OAuth connect flow in Phase 2).
+  GET    /admin/festivals/{id}/edit   edit form (own festivals only)
+  POST   /admin/festivals/{id}        update    (own festivals only)
+  POST   /admin/festivals/{id}/delete delete    (own festivals only)
 """
 
 from __future__ import annotations
@@ -28,10 +25,10 @@ from fastapi.templating import Jinja2Templates
 from backend.app.auth.service import require_admin
 from backend.app.db.client import MongoDB
 from backend.app.db.models import (
-    FestivalDoc,
     FestivalDefaults,
-    GmailCredentials,
+    FestivalDoc,
     FestivalStatus,
+    GmailCredentials,
     UserDoc,
 )
 from backend.app.services.crypto import encrypt
@@ -46,42 +43,47 @@ def _ctx(request: Request, user: UserDoc, **extra) -> dict:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-async def _get_festival_or_404(festival_id: str) -> dict:
+async def _own_festival_or_404(festival_id: str, user: UserDoc) -> dict:
+    """Load a festival, enforcing ownership — admin can only touch their own."""
     if not ObjectId.is_valid(festival_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Festival not found")
-    doc = await MongoDB.festivals().find_one({"_id": ObjectId(festival_id)})
+    doc = await MongoDB.festivals().find_one({
+        "_id":        ObjectId(festival_id),
+        "created_by": str(user.id),          # ← isolation guard
+    })
     if not doc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Festival not found")
     return doc
 
 
 def _to_public(doc: dict) -> dict:
-    """Strip secrets, expose computed flags. Used in list/edit views."""
     gmail = doc.get("gmail") or {}
     canva = doc.get("canva") or {}
     return {
-        "id":           str(doc["_id"]),
-        "slug":         doc.get("slug", ""),
-        "name":         doc.get("name", ""),
-        "status":       doc.get("status", "active"),
-        "defaults":     doc.get("defaults", {}),
-        "gmail_client_id":     gmail.get("client_id", ""),
-        "gmail_project_id":    gmail.get("project_id", ""),
-        "gmail_sender_email":  gmail.get("sender_email", ""),
-        "gmail_connected":     bool(gmail.get("refresh_token_enc")),
-        "canva_connected":     bool(canva.get("refresh_token_enc")),
-        "created_at":   doc.get("created_at"),
+        "id":                 str(doc["_id"]),
+        "slug":               doc.get("slug", ""),
+        "name":               doc.get("name", ""),
+        "status":             doc.get("status", "active"),
+        "defaults":           doc.get("defaults", {}),
+        "gmail_client_id":    gmail.get("client_id", ""),
+        "gmail_project_id":   gmail.get("project_id", ""),
+        "gmail_sender_email": gmail.get("sender_email", ""),
+        "gmail_connected":    bool(gmail.get("refresh_token_enc")),
+        "canva_connected":    bool(canva.get("refresh_token_enc")),
+        "created_at":         doc.get("created_at"),
     }
 
 
-# ── List ──────────────────────────────────────────────────────────────────────
+# ── List (own festivals only) ─────────────────────────────────────────────────
 
 @router.get("/festivals", response_class=HTMLResponse)
 async def list_festivals(
     request: Request,
     user: Annotated[UserDoc, Depends(require_admin)],
 ):
-    cursor = MongoDB.festivals().find().sort("created_at", -1)
+    cursor = MongoDB.festivals().find(
+        {"created_by": str(user.id)}            # ← isolation filter
+    ).sort("created_at", -1)
     festivals = [_to_public(doc) async for doc in cursor]
     return templates.TemplateResponse(
         request,
@@ -90,7 +92,7 @@ async def list_festivals(
     )
 
 
-# ── Create form ───────────────────────────────────────────────────────────────
+# ── Create ────────────────────────────────────────────────────────────────────
 
 @router.get("/festivals/new", response_class=HTMLResponse)
 async def new_festival_form(
@@ -108,21 +110,19 @@ async def new_festival_form(
 async def create_festival(
     request: Request,
     user: Annotated[UserDoc, Depends(require_admin)],
-    slug:                 Annotated[str, Form()],
-    name:                 Annotated[str, Form()],
-    festival_status:      Annotated[str, Form()] = "active",
-    gmail_client_id:      Annotated[str, Form()] = "",
-    gmail_client_secret:  Annotated[str, Form()] = "",
-    gmail_project_id:     Annotated[str, Form()] = "",
-    gmail_sender_email:   Annotated[str, Form()] = "",
-    email_subject:        Annotated[str, Form()] = "",
-    email_from_name:      Annotated[str, Form()] = "",
-    season:               Annotated[str, Form()] = "",
-    season_date:          Annotated[str, Form()] = "",
+    slug:                Annotated[str, Form()],
+    name:                Annotated[str, Form()],
+    festival_status:     Annotated[str, Form()] = "active",
+    gmail_client_id:     Annotated[str, Form()] = "",
+    gmail_client_secret: Annotated[str, Form()] = "",
+    gmail_project_id:    Annotated[str, Form()] = "",
+    gmail_sender_email:  Annotated[str, Form()] = "",
+    email_subject:       Annotated[str, Form()] = "",
+    email_from_name:     Annotated[str, Form()] = "",
+    season:              Annotated[str, Form()] = "",
+    season_date:         Annotated[str, Form()] = "",
 ):
-    # Reject duplicate slug
-    existing = await MongoDB.festivals().find_one({"slug": slug})
-    if existing:
+    if await MongoDB.festivals().find_one({"slug": slug}):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Slug '{slug}' already exists")
 
     fest = FestivalDoc(
@@ -141,16 +141,15 @@ async def create_festival(
             season=season,
             season_date=season_date,
         ),
-        created_by=str(user.id),
+        created_by=str(user.id),               # ← ownership recorded
     )
 
     payload = fest.model_dump(by_alias=True, exclude={"id"})
     await MongoDB.festivals().insert_one(payload)
-
     return RedirectResponse(url="/admin/festivals", status_code=status.HTTP_303_SEE_OTHER)
 
 
-# ── Edit form ─────────────────────────────────────────────────────────────────
+# ── Edit ──────────────────────────────────────────────────────────────────────
 
 @router.get("/festivals/{festival_id}/edit", response_class=HTMLResponse)
 async def edit_festival_form(
@@ -158,7 +157,7 @@ async def edit_festival_form(
     request: Request,
     user: Annotated[UserDoc, Depends(require_admin)],
 ):
-    doc = await _get_festival_or_404(festival_id)
+    doc = await _own_festival_or_404(festival_id, user)
     return templates.TemplateResponse(
         request,
         "admin/festival_form.html",
@@ -171,42 +170,38 @@ async def update_festival(
     festival_id: str,
     request: Request,
     user: Annotated[UserDoc, Depends(require_admin)],
-    name:                 Annotated[str, Form()],
-    festival_status:      Annotated[str, Form()] = "active",
-    gmail_client_id:      Annotated[str, Form()] = "",
-    gmail_client_secret:  Annotated[str, Form()] = "",
-    gmail_project_id:     Annotated[str, Form()] = "",
-    gmail_sender_email:   Annotated[str, Form()] = "",
-    email_subject:        Annotated[str, Form()] = "",
-    email_from_name:      Annotated[str, Form()] = "",
-    season:               Annotated[str, Form()] = "",
-    season_date:          Annotated[str, Form()] = "",
+    name:                Annotated[str, Form()],
+    festival_status:     Annotated[str, Form()] = "active",
+    gmail_client_id:     Annotated[str, Form()] = "",
+    gmail_client_secret: Annotated[str, Form()] = "",
+    gmail_project_id:    Annotated[str, Form()] = "",
+    gmail_sender_email:  Annotated[str, Form()] = "",
+    email_subject:       Annotated[str, Form()] = "",
+    email_from_name:     Annotated[str, Form()] = "",
+    season:              Annotated[str, Form()] = "",
+    season_date:         Annotated[str, Form()] = "",
 ):
-    doc = await _get_festival_or_404(festival_id)
+    doc = await _own_festival_or_404(festival_id, user)
 
-    update_set = {
-        "name": name,
-        "status": festival_status,
-        "gmail.client_id":    gmail_client_id,
-        "gmail.project_id":   gmail_project_id,
-        "gmail.sender_email": gmail_sender_email,
+    update_set: dict = {
+        "name":                     name,
+        "status":                   festival_status,
+        "gmail.client_id":          gmail_client_id,
+        "gmail.project_id":         gmail_project_id,
+        "gmail.sender_email":       gmail_sender_email,
         "defaults.email_subject":   email_subject or doc.get("defaults", {}).get("email_subject", ""),
         "defaults.email_from_name": email_from_name or name,
         "defaults.season":          season,
         "defaults.season_date":     season_date,
-        "updated_at": datetime.now(timezone.utc),
+        "updated_at":               datetime.now(timezone.utc),
     }
-
-    # Only overwrite client_secret if a new one is provided (so editing without
-    # re-typing the secret doesn't wipe it out).
     if gmail_client_secret:
         update_set["gmail.client_secret_enc"] = encrypt(gmail_client_secret)
 
     await MongoDB.festivals().update_one(
-        {"_id": ObjectId(festival_id)},
+        {"_id": doc["_id"]},
         {"$set": update_set},
     )
-
     return RedirectResponse(url="/admin/festivals", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -218,15 +213,14 @@ async def delete_festival(
     request: Request,
     user: Annotated[UserDoc, Depends(require_admin)],
 ):
-    if not ObjectId.is_valid(festival_id):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Festival not found")
+    doc = await _own_festival_or_404(festival_id, user)   # 404 if not owner
 
-    # Soft cascade — kill associated templates and users
-    await MongoDB.cert_templates().delete_many({"festival_id": festival_id})
+    fid_str = str(doc["_id"])
+    await MongoDB.cert_templates().delete_many({"festival_id": fid_str})
     await MongoDB.users().update_many(
-        {"festival_id": festival_id},
+        {"festival_id": fid_str},
         {"$set": {"status": "inactive"}},
     )
-    await MongoDB.festivals().delete_one({"_id": ObjectId(festival_id)})
+    await MongoDB.festivals().delete_one({"_id": doc["_id"]})
 
     return RedirectResponse(url="/admin/festivals", status_code=status.HTTP_303_SEE_OTHER)
