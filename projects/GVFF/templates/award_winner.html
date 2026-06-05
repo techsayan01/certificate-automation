@@ -121,11 +121,52 @@ body{
 <body>
 <div class="wrap">
 
-  <!-- ── Confetti header (single image — fully pre-rendered, no CSS tricks) ── -->
-  <img src="cid:confetti_header"
-       alt="Global Visionaries Film Festival — Award Winner"
-       width="640"
-       style="display:block;width:100%;max-width:640px;border:0;outline:none;text-decoration:none"/>
+  <!-- ── Confetti header (pure HTML/CSS — renders in Gmail, Outlook, all clients) ── -->
+  <table role="presentation" width="640" cellpadding="0" cellspacing="0" border="0"
+         style="width:100%;max-width:640px;">
+    <tr>
+      <td style="background:#0a0a1a;background:linear-gradient(180deg,#0a0a1a 0%,#16213e 55%,#1a1a3e 100%);
+                 padding:26px 20px 20px;text-align:center;font-family:Arial,sans-serif;">
+
+        <!-- confetti row 1 -->
+        <div style="margin:0 0 16px 0;font-size:16px;line-height:1;letter-spacing:5px;">
+          <span style="color:#FFD700;">◆</span><span style="color:#FF6B6B;">●</span><span style="color:#4FC3F7;">▪</span><span style="color:#A8E063;">◆</span><span style="color:#CE93D8;">●</span><span style="color:#FF8A65;">◆</span><span style="color:#FFD700;">▪</span><span style="color:#29B6F6;">●</span><span style="color:#66BB6A;">◆</span><span style="color:#AB47BC;">▪</span><span style="color:#FFFFFF;">●</span><span style="color:#FFD700;">◆</span><span style="color:#FF6B6B;">▪</span><span style="color:#4FC3F7;">●</span><span style="color:#A8E063;">◆</span><span style="color:#CE93D8;">▪</span><span style="color:#FF8A65;">●</span><span style="color:#29B6F6;">◆</span><span style="color:#FFD700;">▪</span><span style="color:#66BB6A;">●</span>
+        </div>
+
+        <!-- festival label -->
+        <div style="font-size:10px;letter-spacing:5px;color:#d4af37;
+                    text-transform:uppercase;margin:0 0 10px 0;">
+          GLOBAL &nbsp;&nbsp; VISIONARIES &nbsp;&nbsp; FILM &nbsp;&nbsp; FESTIVAL
+        </div>
+
+        <!-- trophy star -->
+        <div style="font-size:54px;line-height:1.1;color:#d4af37;margin:0 0 14px 0;">★</div>
+
+        <!-- AWARD WINNER badge -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+               style="margin:0 auto 16px;">
+          <tr>
+            <td style="background:#d4af37;border-radius:24px;padding:8px 28px;">
+              <span style="font-family:Arial,sans-serif;font-size:12px;font-weight:800;
+                           letter-spacing:2px;color:#0a0a1a;white-space:nowrap;">
+                ✦ &nbsp; AWARD WINNER &nbsp; ✦
+              </span>
+            </td>
+          </tr>
+        </table>
+
+        <!-- confetti row 2 -->
+        <div style="margin:0;font-size:16px;line-height:1;letter-spacing:5px;">
+          <span style="color:#CE93D8;">▪</span><span style="color:#FFD700;">●</span><span style="color:#FF6B6B;">◆</span><span style="color:#4FC3F7;">▪</span><span style="color:#A8E063;">●</span><span style="color:#FFD700;">◆</span><span style="color:#AB47BC;">▪</span><span style="color:#FF8A65;">●</span><span style="color:#29B6F6;">◆</span><span style="color:#66BB6A;">▪</span><span style="color:#FFFFFF;">●</span><span style="color:#FFD700;">◆</span><span style="color:#FF6B6B;">▪</span><span style="color:#4FC3F7;">●</span><span style="color:#A8E063;">◆</span><span style="color:#CE93D8;">▪</span><span style="color:#FF8A65;">●</span><span style="color:#29B6F6;">◆</span><span style="color:#FFD700;">▪</span><span style="color:#AB47BC;">●</span>
+        </div>
+
+      </td>
+    </tr>
+    <!-- gold bottom border -->
+    <tr>
+      <td style="background:#d4af37;height:2px;line-height:2px;font-size:1px;">&nbsp;</td>
+    </tr>
+  </table>
 
   <!-- ── Recipient banner ── -->
   <div class="recipient-band">
@@ -176,7 +217,6 @@ body{
     <!-- ── Signature ── -->
     <hr class="sig-divider"/>
     <div class="sig">
-      <strong>Best Regards,</strong><br/><br/>
       <!-- GMAIL_SIGNATURE -->
     </div>
 

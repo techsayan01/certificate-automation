@@ -17,6 +17,10 @@ credentials.json
 # Output
 data/output/
 
+# Real recipient CSV exports (contain PII — never commit)
+data/*.csv
+!data/*.example.csv
+
 # Python
 __pycache__/
 *.pyc

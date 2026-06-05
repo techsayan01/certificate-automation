@@ -1,0 +1,25 @@
+{
+  "_comment": "Maps each award category to extra files attached to the email. Paths are relative to projects/GVFF/. Award Winner categories get the winner laurel; Finalist categories get the finalist laurel (add assets/finalist_laurel_2026.png when available).",
+
+  "Award Winner":                                 ["assets/winner_laurel_2026.png"],
+
+  "Best Short Film (Main Category)":              ["assets/winner_laurel_2026.png"],
+  "Best Narrative Feature (Main Category)":       ["assets/winner_laurel_2026.png"],
+  "Best Documentary (Main Category)":             ["assets/winner_laurel_2026.png"],
+  "Best Student Film (Main Category)":            ["assets/winner_laurel_2026.png"],
+  "Best Animation Film (Main Category)":          ["assets/winner_laurel_2026.png"],
+  "Best Experimental Film (Main Category)":       ["assets/winner_laurel_2026.png"],
+  "Best Horror Film (Main Category)":             ["assets/winner_laurel_2026.png"],
+  "Best Music Video  (Main Category)":            ["assets/winner_laurel_2026.png"],
+  "Best AI Film (Main Category)":                 ["assets/winner_laurel_2026.png"],
+  "Best Unproduced Script/Screenplay":            ["assets/winner_laurel_2026.png"],
+  "Best Feature Script/Screenplay":               ["assets/winner_laurel_2026.png"],
+  "Best Short Script/Screenplay":                 ["assets/winner_laurel_2026.png"],
+
+  "Best Director (Sub Category)":                 ["assets/winner_laurel_2026.png"],
+  "Best Actor/Actress (Sub Category)":            ["assets/winner_laurel_2026.png"],
+  "Best First Time Filmmaker (Main Category)":    ["assets/winner_laurel_2026.png"],
+  "Best AI Music Video (Sub Category)":           ["assets/winner_laurel_2026.png"],
+
+  "Finalist":                                     ["assets/finalist_laurel_2026.png"]
+}

@@ -1,0 +1,14 @@
+{
+  "_comment": "Maps each award category to its blank certificate PNG template. Categories not listed fall back to CERT_TEMPLATE_PATH in .env. Export each blank certificate from Canva as PNG and place in assets/.",
+
+  "Award Winner":                      "assets/certificate_award_winner.png",
+  "Best Student Film (Main Category)": "assets/certificate_award_winner.png",
+  "Best Student Film":                 "assets/certificate_award_winner.png",
+  "Best Documentary":                  "assets/certificate_award_winner.png",
+  "Best Short Film":                   "assets/certificate_award_winner.png",
+  "Best Feature Film":                 "assets/certificate_award_winner.png",
+  "Best Experimental":                 "assets/certificate_award_winner.png",
+  "Best Music Video":                  "assets/certificate_award_winner.png",
+
+  "Finalist":                          "assets/certificate_finalist.png"
+}
