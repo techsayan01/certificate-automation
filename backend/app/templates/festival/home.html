@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}{{ festival.name }} — Home{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ festival.name }}</h1>
+  <a href="/festival/send" class="btn btn-primary">Send certificates →</a>
+</div>
+
+<div class="grid-2">
+  <!-- Gmail connection -->
+  <div class="card">
+    <h3>Gmail</h3>
+    {% if connection.gmail_connected %}
+      <p><span class="pill pill-done">Connected</span> {{ connection.gmail_sender_email }}</p>
+      <p class="muted">Certificates will be sent from this address.</p>
+      <form method="post" action="/festival/disconnect/gmail" class="inline"
+            onsubmit="return confirm('Disconnect Gmail?');">
+        <button type="submit" class="btn">Disconnect</button>
+      </form>
+    {% elif connection.gmail_client_set %}
+      <p><span class="pill pill-queued">Not connected</span></p>
+      <p class="muted">Authorise the Gmail account that will send the emails.</p>
+      <a href="/festival/connect/gmail" class="btn btn-primary">Connect Gmail</a>
+    {% else %}
+      <p><span class="pill pill-queued">Not configured</span></p>
+      <p class="muted">An admin needs to add Gmail OAuth credentials to this festival before you can connect.</p>
+    {% endif %}
+  </div>
+
+  <!-- Canva connection -->
+  <div class="card">
+    <h3>Canva</h3>
+    {% if connection.canva_connected %}
+      <p><span class="pill pill-done">Connected</span></p>
+      <p class="muted">Certificate PDFs will be generated from your Canva brand templates.</p>
+      <form method="post" action="/festival/disconnect/canva" class="inline"
+            onsubmit="return confirm('Disconnect Canva?');">
+        <button type="submit" class="btn">Disconnect</button>
+      </form>
+    {% else %}
+      <p><span class="pill pill-queued">Not connected</span></p>
+      <p class="muted">Authorise Canva so we can autofill your certificate brand templates.</p>
+      <a href="/festival/connect/canva" class="btn btn-primary">Connect Canva</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <h3>Templates</h3>
+  <p>{{ template_count }} certificate template{{ '' if template_count == 1 else 's' }} configured.</p>
+  <a href="/festival/templates" class="btn">Manage templates</a>
+</div>
+
+<div class="card" style="margin-top:20px;">
+  <h3>Recent runs</h3>
+  {% if not recent_runs %}
+    <p class="muted">No runs yet.</p>
+  {% else %}
+    <table>
+      <thead>
+        <tr>
+          <th>When</th>
+          <th>Season</th>
+          <th>Status</th>
+          <th>Sent</th>
+          <th>Failed</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in recent_runs %}
+        <tr>
+          <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '—' }}</td>
+          <td>{{ r.season }} {% if r.season_date %}<span class="muted">· {{ r.season_date }}</span>{% endif %}</td>
+          <td><span class="pill pill-{{ r.status }}">{{ r.status }}</span></td>
+          <td>{{ r.totals.sent or 0 }}</td>
+          <td>{{ r.totals.failed or 0 }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+
+<style>
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-2 .card h3 { margin-top: 0; }
+</style>
+{% endblock %}

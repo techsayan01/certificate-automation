@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ festival.name }} — Settings{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Settings</h1>
+</div>
+
+{% set ok = request.query_params.get("ok") %}
+{% set err = request.query_params.get("error") %}
+{% if ok %}<div class="alert alert-success">{{ ok }}</div>{% endif %}
+{% if err %}<div class="alert alert-error">{{ err }}</div>{% endif %}
+
+<form method="post" action="/festival/settings" class="card">
+  <h3>Email defaults</h3>
+  <label>Subject line
+    <input type="text" name="email_subject" value="{{ festival.defaults.email_subject }}"/>
+  </label>
+  <label>From name
+    <input type="text" name="email_from_name" value="{{ festival.defaults.email_from_name }}"/>
+  </label>
+  <label>Default season label
+    <input type="text" name="season" value="{{ festival.defaults.season }}" placeholder="Season 5"/>
+  </label>
+  <label>Default season date
+    <input type="text" name="season_date" value="{{ festival.defaults.season_date }}" placeholder="Sep - Jan 2026"/>
+  </label>
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+
+<div class="card" style="margin-top:20px;">
+  <h3>Connections</h3>
+  <p>
+    Gmail:
+    {% if connection.gmail_connected %}
+      <span class="pill pill-done">Connected</span> {{ connection.gmail_sender_email }}
+    {% elif connection.gmail_client_set %}
+      <span class="pill pill-queued">Not connected</span>
+      &nbsp;<a href="/festival/connect/gmail">Connect now →</a>
+    {% else %}
+      <span class="pill pill-queued">Awaiting admin to add credentials</span>
+    {% endif %}
+  </p>
+  <p>
+    Canva:
+    {% if connection.canva_connected %}
+      <span class="pill pill-done">Connected</span>
+    {% else %}
+      <span class="pill pill-queued">Not connected</span>
+      &nbsp;<a href="/festival/connect/canva">Connect now →</a>
+    {% endif %}
+  </p>
+</div>
+{% endblock %}

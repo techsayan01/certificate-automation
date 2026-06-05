@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Templates{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Certificate templates</h1>
+  <a href="/festival/templates/new" class="btn btn-primary">+ New template</a>
+</div>
+
+{% if not items %}
+  <div class="card">
+    <p class="muted">
+      No templates yet. Add one for each award category × judging status combination
+      you want to issue certificates for (e.g. <em>Best Short Film</em> + <em>Award Winner</em>,
+      then again with <em>Finalist</em>).
+    </p>
+  </div>
+{% else %}
+  <table>
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>Status</th>
+        <th>Canva template</th>
+        <th>Laurel</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for t in items %}
+      <tr>
+        <td>{{ t.category }}</td>
+        <td><span class="pill pill-{{ 'done' if t.judging_status == 'Award Winner' else 'queued' }}">{{ t.judging_status }}</span></td>
+        <td><code>{{ t.canva_brand_template_id }}</code></td>
+        <td>
+          {% if t.laurel_path %}
+            <span class="pill pill-done">Uploaded</span>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+        <td class="actions">
+          <a href="/festival/templates/{{ t.id }}/edit" class="btn">Edit</a>
+          <form method="post" action="/festival/templates/{{ t.id }}/delete" class="inline"
+                onsubmit="return confirm('Delete this template?');">
+            <button type="submit" class="btn btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+{% endblock %}

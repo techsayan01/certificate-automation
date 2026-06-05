@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Users — Admin{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Users</h1>
+  <a href="/admin/users/new" class="btn btn-primary">+ New user</a>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Email</th>
+      <th>Role</th>
+      <th>Festival</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for u in users %}
+    <tr>
+      <td>{{ u.email }}</td>
+      <td><span class="pill pill-{{ 'done' if u.role == 'admin' else 'queued' }}">{{ u.role }}</span></td>
+      <td>{{ u.festival_name or '—' }}</td>
+      <td class="actions">
+        {% if u.id != user.id|string %}
+          <form method="post" action="/admin/users/{{ u.id }}/delete" class="inline"
+                onsubmit="return confirm('Delete {{ u.email }}?');">
+            <button type="submit" class="btn btn-danger">Delete</button>
+          </form>
+        {% else %}
+          <span class="muted">— you —</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
