@@ -56,8 +56,14 @@ class Settings(BaseSettings):
     CANVA_API_BASE:      str = "https://api.canva.com/rest/v1"
     CANVA_SCOPES:        str = "design:meta:read design:content:read design:content:write"
 
-    # ── Local storage for laurel uploads (Phase 2). GCS in Phase 3. ──────────
+    # ── Local storage for laurel uploads (Phase 2). GCS in Phase 4. ──────────
     LAUREL_STORAGE_DIR:  str = "backend/data/laurels"
+
+    # ── Cloud Tasks — production async run dispatch ──────────────────────────
+    GCP_PROJECT:            str = ""
+    CLOUD_TASKS_LOCATION:   str = ""        # e.g. asia-south1
+    CLOUD_TASKS_QUEUE:      str = ""        # e.g. cert-runs
+    CLOUD_TASKS_SA_EMAIL:   str = ""        # service account that the Cloud Tasks dispatcher impersonates
 
 
 @lru_cache

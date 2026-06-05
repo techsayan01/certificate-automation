@@ -1,0 +1,72 @@
+#
+# Cloud Build pipeline: GitHub push → image build → Cloud Run deploy.
+#
+# Trigger setup (do once via console or `gcloud builds triggers create`):
+#   • Source       : this GitHub repo, branch = main
+#   • Build config : /infra/cloudbuild.yaml
+#   • Substitutions: _REGION, _SERVICE, _BASE_URL  (override per environment)
+#
+# Secrets used at deploy time live in Secret Manager:
+#   • mongo-uri              MongoDB Atlas connection string
+#   • session-secret         random 64-char string
+#   • encryption-key         base64 Fernet key (32 bytes)
+#   • initial-admin-password used only on first boot
+#   • canva-client-id        Cert-Automate integration Client ID
+#   • canva-client-secret    Cert-Automate integration Client Secret
+#
+substitutions:
+  _REGION:   asia-south1
+  _SERVICE:  cert-automation
+  _BASE_URL: https://cert-automation.example.com
+  _IMAGE:    gcr.io/${PROJECT_ID}/cert-automation
+
+steps:
+
+  # 1. Build the container
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - "-t"
+      - "${_IMAGE}:${SHORT_SHA}"
+      - "-t"
+      - "${_IMAGE}:latest"
+      - "-f"
+      - backend/Dockerfile
+      - "."
+
+  # 2. Push both tags
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "--all-tags", "${_IMAGE}"]
+
+  # 3. Deploy to Cloud Run
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - "${_SERVICE}"
+      - "--image=${_IMAGE}:${SHORT_SHA}"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
+      - "--port=8080"
+      - "--cpu=1"
+      - "--memory=512Mi"
+      - "--min-instances=0"
+      - "--max-instances=10"
+      - "--timeout=3600"           # 60-minute request timeout for worker runs
+      # Plain env vars
+      - "--set-env-vars=ENV=production,BASE_URL=${_BASE_URL},GCP_PROJECT=${PROJECT_ID},CLOUD_TASKS_LOCATION=${_REGION},CLOUD_TASKS_QUEUE=cert-runs,CLOUD_TASKS_SA_EMAIL=cert-tasks@${PROJECT_ID}.iam.gserviceaccount.com,INITIAL_ADMIN_EMAIL=admin@example.com"
+      # Secrets (latest version)
+      - "--set-secrets=MONGO_URI=mongo-uri:latest,SESSION_SECRET=session-secret:latest,ENCRYPTION_KEY=encryption-key:latest,INITIAL_ADMIN_PASSWORD=initial-admin-password:latest,CANVA_CLIENT_ID=canva-client-id:latest,CANVA_CLIENT_SECRET=canva-client-secret:latest"
+
+images:
+  - "${_IMAGE}:${SHORT_SHA}"
+  - "${_IMAGE}:latest"
+
+timeout: 1200s
+options:
+  logging: CLOUD_LOGGING_ONLY

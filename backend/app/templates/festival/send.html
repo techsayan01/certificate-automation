@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Send certificates — {{ festival.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Send certificates</h1>
+</div>
+
+{% if not (ready.gmail and ready.canva and ready.templates) %}
+  <div class="alert alert-error">
+    <strong>Not ready to send yet:</strong>
+    <ul style="margin: 8px 0 0 18px;">
+      {% if not ready.gmail %}<li>Gmail is not connected. <a href="/festival/connect/gmail">Connect now</a></li>{% endif %}
+      {% if not ready.canva %}<li>Canva is not connected. <a href="/festival/connect/canva">Connect now</a></li>{% endif %}
+      {% if not ready.templates %}<li>No certificate templates configured. <a href="/festival/templates/new">Add one</a></li>{% endif %}
+    </ul>
+  </div>
+{% endif %}
+
+<form method="post" action="/festival/send" enctype="multipart/form-data" class="card">
+  <h3>1. CSV from FilmFreeway</h3>
+  <label>Upload CSV
+    <input type="file" name="csv" accept=".csv,text/csv" required/>
+    <small class="muted">FilmFreeway export with the standard column names (First Name, Last Name, Email, Project Title, Submission Categories, Judging Status, Submission Notes).</small>
+  </label>
+
+  <h3>2. Season details</h3>
+  <label>Season label
+    <input type="text" name="season" value="{{ festival.defaults.season }}" placeholder="Season 5"/>
+  </label>
+  <label>Season date range
+    <input type="text" name="season_date" value="{{ festival.defaults.season_date }}" placeholder="Sep - Jan 2026"/>
+  </label>
+
+  <h3>3. Send</h3>
+  <p class="muted">Clicking Send will generate every certificate via Canva and email each recipient.
+                   You'll be redirected to a live dashboard while the run is in progress.</p>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary"
+            {% if not (ready.gmail and ready.canva and ready.templates) %}disabled{% endif %}>
+      Send certificates →
+    </button>
+    <a href="/festival" class="btn">Cancel</a>
+  </div>
+</form>
+
+<style>
+  .form-actions { margin-top: 24px; display: flex; gap: 12px; }
+  h3 { margin: 24px 0 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;
+       font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; }
+  h3:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+  small.muted { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; }
+</style>
+{% endblock %}

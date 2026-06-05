@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Runs — {{ festival.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Runs</h1>
+  <a href="/festival/send" class="btn btn-primary">+ New run</a>
+</div>
+
+{% if not runs %}
+  <div class="card">
+    <p class="muted">No runs yet. Click <strong>New run</strong> to send your first batch.</p>
+  </div>
+{% else %}
+  <table>
+    <thead>
+      <tr>
+        <th>Started</th>
+        <th>Season</th>
+        <th>Status</th>
+        <th>Total</th>
+        <th>Sent</th>
+        <th>Failed</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for r in runs %}
+      <tr>
+        <td>{{ r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '—' }}</td>
+        <td>{{ r.season }} {% if r.season_date %}<span class="muted">· {{ r.season_date }}</span>{% endif %}</td>
+        <td><span class="pill pill-{{ r.status }}">{{ r.status }}</span></td>
+        <td>{{ r.totals.total or 0 }}</td>
+        <td>{{ r.totals.sent or 0 }}</td>
+        <td>{{ r.totals.failed or 0 }}</td>
+        <td><a href="/festival/runs/{{ r.id }}" class="btn">Open</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endif %}
+{% endblock %}
