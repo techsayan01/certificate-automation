@@ -177,8 +177,15 @@ class FestivalPublic(FestivalBase):
 # ── Certificate template ──────────────────────────────────────────────────────
 
 class CertTemplateBase(BaseModel):
+    """One template per judging status, per festival.
+
+    The same template covers every category the recipient earned at that
+    status. At send time the pipeline looks up
+    (festival_id, judging_status) and uses this template to generate a
+    PDF for each of the recipient's certificates that fall under that
+    status — Canva's autofill fills in Name/Project/Category itself.
+    """
     festival_id:    str
-    category:       str = Field(min_length=1, max_length=200)
     judging_status: JudgingStatus
 
     canva_brand_template_id: str = Field(min_length=1)

@@ -27,6 +27,12 @@
     <div>
       <div class="label">Skipped</div>
       <div class="big" id="t-skipped">{{ run.totals.skipped or 0 }}</div>
+      <div class="muted" style="font-size:11px;">recipients</div>
+    </div>
+    <div>
+      <div class="label">Certs skipped</div>
+      <div class="big" id="t-certs-skipped">{{ run.totals.certs_skipped or 0 }}</div>
+      <div class="muted" style="font-size:11px;">no template for status</div>
     </div>
     <div>
       <div class="label">Season</div>
@@ -49,7 +55,7 @@
 </div>
 
 <style>
-  .run-summary { display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px; }
+  .run-summary { display: grid; grid-template-columns: repeat(7, 1fr); gap: 20px; }
   .run-summary .label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .run-summary .big { font-size: 22px; font-weight: 600; }
   .log {
@@ -81,10 +87,11 @@
       pill.className = "pill pill-" + data.status;
       pill.textContent = data.status;
 
-      document.getElementById("t-total").textContent   = data.totals.total   ?? 0;
-      document.getElementById("t-sent").textContent    = data.totals.sent    ?? 0;
-      document.getElementById("t-failed").textContent  = data.totals.failed  ?? 0;
-      document.getElementById("t-skipped").textContent = data.totals.skipped ?? 0;
+      document.getElementById("t-total").textContent         = data.totals.total         ?? 0;
+      document.getElementById("t-sent").textContent          = data.totals.sent          ?? 0;
+      document.getElementById("t-failed").textContent        = data.totals.failed        ?? 0;
+      document.getElementById("t-skipped").textContent       = data.totals.skipped       ?? 0;
+      document.getElementById("t-certs-skipped").textContent = data.totals.certs_skipped ?? 0;
 
       const logEl = document.getElementById("log");
       logEl.textContent = (data.log || []).map(e =>

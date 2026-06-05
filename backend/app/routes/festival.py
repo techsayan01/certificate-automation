@@ -109,6 +109,26 @@ async def home(
     )
 
 
+# ── Manage section ───────────────────────────────────────────────────────────
+
+@router.get("/manage", response_class=HTMLResponse)
+async def manage_index(
+    request: Request,
+    user: Annotated[UserDoc, Depends(require_festival_user)],
+):
+    """Index page for the festival user's management area — cards
+    pointing to the four things they configure."""
+    festival = await _get_festival(user)
+    template_count = await MongoDB.cert_templates().count_documents(
+        {"festival_id": str(festival["_id"])}
+    )
+    return templates.TemplateResponse(
+        request,
+        "festival/manage.html",
+        _ctx(request, user, festival, template_count=template_count),
+    )
+
+
 # ── Settings ─────────────────────────────────────────────────────────────────
 
 @router.get("/settings", response_class=HTMLResponse)

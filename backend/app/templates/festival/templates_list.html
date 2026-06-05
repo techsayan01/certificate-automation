@@ -9,27 +9,34 @@
 {% if not items %}
   <div class="card">
     <p class="muted">
-      No templates yet. Add one for each award category × judging status combination
-      you want to issue certificates for (e.g. <em>Best Short Film</em> + <em>Award Winner</em>,
-      then again with <em>Finalist</em>).
+      No templates yet. Add one per judging status you want to issue
+      certificates for &mdash; e.g. <em>Award Winner</em>, <em>Finalist</em>,
+      <em>Semi-Finalist</em>.
+    </p>
+    <p class="muted">
+      Recipients in the CSV whose status doesn't have a matching template
+      will be skipped, with a log line in the run dashboard.
     </p>
   </div>
 {% else %}
   <table>
     <thead>
       <tr>
-        <th>Category</th>
-        <th>Status</th>
-        <th>Canva template</th>
+        <th>Judging status</th>
+        <th>Canva brand template</th>
         <th>Laurel</th>
+        <th>Updated</th>
         <th>Actions</th>
       </tr>
     </thead>
     <tbody>
     {% for t in items %}
       <tr>
-        <td>{{ t.category }}</td>
-        <td><span class="pill pill-{{ 'done' if t.judging_status == 'Award Winner' else 'queued' }}">{{ t.judging_status }}</span></td>
+        <td>
+          <span class="pill pill-{{ 'done' if t.judging_status == 'Award Winner' else 'queued' }}">
+            {{ t.judging_status }}
+          </span>
+        </td>
         <td><code>{{ t.canva_brand_template_id }}</code></td>
         <td>
           {% if t.laurel_path %}
@@ -38,6 +45,7 @@
             <span class="muted">—</span>
           {% endif %}
         </td>
+        <td class="muted">{{ t.updated_at.strftime('%Y-%m-%d %H:%M') if t.updated_at else '—' }}</td>
         <td class="actions">
           <a href="/festival/templates/{{ t.id }}/edit" class="btn">Edit</a>
           <form method="post" action="/festival/templates/{{ t.id }}/delete" class="inline"

@@ -74,28 +74,19 @@ async def _inc_totals(run_id: ObjectId, **inc: int) -> None:
 
 # ── Template resolution ──────────────────────────────────────────────────────
 
-async def _load_templates(festival_id: str) -> dict[tuple[str, str], dict]:
-    """Return {(category, judging_status): template_doc} for fast lookup."""
-    out: dict[tuple[str, str], dict] = {}
+async def _load_templates(festival_id: str) -> dict[str, dict]:
+    """Return {judging_status: template_doc}. One template per status."""
+    out: dict[str, dict] = {}
     async for doc in MongoDB.cert_templates().find({"festival_id": festival_id}):
-        key = (doc.get("category", ""), doc.get("judging_status", ""))
-        out[key] = doc
+        status = doc.get("judging_status", "")
+        if status:
+            out[status] = doc
     return out
 
 
-def _pick_template(
-    templates_by_key: dict[tuple[str, str], dict],
-    category: str,
-    status: str,
-) -> dict | None:
-    """Exact match first, then fall back to category-only matches."""
-    if (category, status) in templates_by_key:
-        return templates_by_key[(category, status)]
-    # Fallback: same category, different status — better than nothing
-    for (c, s), doc in templates_by_key.items():
-        if c == category:
-            return doc
-    return None
+def _pick_template(templates_by_status: dict[str, dict], status: str) -> dict | None:
+    """Return the template for the given status, or None if not configured."""
+    return templates_by_status.get(status)
 
 
 # ── Body rendering ───────────────────────────────────────────────────────────
@@ -153,14 +144,16 @@ async def execute_run(run_id: str) -> None:
                           finished_at=datetime.now(timezone.utc))
         return
 
-    templates_by_key = await _load_templates(festival_id)
-    if not templates_by_key:
+    templates_by_status = await _load_templates(festival_id)
+    if not templates_by_status:
         await _log(run_oid, "error",
                    "No certificate templates configured. "
                    "Add at least one in /festival/templates.")
         await _set_status(run_oid, RunStatus.FAILED,
                           finished_at=datetime.now(timezone.utc))
         return
+    await _log(run_oid, "info",
+               f"Configured statuses: {', '.join(sorted(templates_by_status.keys()))}")
 
     csv_bytes: bytes | None = run.get("csv_bytes")
     if not csv_bytes:
@@ -224,11 +217,17 @@ async def execute_run(run_id: str) -> None:
 
             # Generate certs in order, keeping the most prestigious template
             # for the email body and laurel attachment.
+            certs_skipped_for_row = 0
             for cert in r["certificates"]:
-                tpl = _pick_template(templates_by_key, cert["category"], cert["status"])
+                tpl = _pick_template(templates_by_status, cert["status"])
                 if not tpl:
-                    await _log(run_oid, "warn",
-                               f"  No template for ({cert['category']}, {cert['status']}) — skipping cert")
+                    await _log(
+                        run_oid, "warn",
+                        f"  No template for status '{cert['status']}' "
+                        f"(category: {cert['category']}) — skipping this certificate",
+                    )
+                    await _inc_totals(run_oid, certs_skipped=1)
+                    certs_skipped_for_row += 1
                     continue
 
                 field_map = tpl.get("canva_field_map") or {}
@@ -260,14 +259,20 @@ async def execute_run(run_id: str) -> None:
                     laurel_path_for_email = tpl.get("laurel_path") or ""
 
             if not attachments:
-                await _log(run_oid, "warn", "  No certificates produced — skipping email")
+                await _log(
+                    run_oid, "warn",
+                    f"  No certificates produced for this recipient "
+                    f"({certs_skipped_for_row} cert(s) skipped) — no email sent",
+                )
                 await _inc_totals(run_oid, skipped=1)
                 continue
 
             # Fall back to the first available template if none matched the
-            # most-prestigious status (e.g. only Finalist cert generated).
+            # row's most-prestigious status (e.g. only Finalist cert generated
+            # for a row whose overall_status was Award Winner but the AW cert
+            # got skipped because no template was configured).
             if email_template_doc is None:
-                email_template_doc = next(iter(templates_by_key.values()))
+                email_template_doc = next(iter(templates_by_status.values()))
 
             # Attach the laurel matching this row's status
             if laurel_path_for_email and Path(laurel_path_for_email).exists():
@@ -317,9 +322,13 @@ async def execute_run(run_id: str) -> None:
         final_status,
         finished_at=datetime.now(timezone.utc),
     )
-    await _log(run_oid, "info",
-               f"Run finished: sent={totals.get('sent',0)} "
-               f"failed={totals.get('failed',0)} skipped={totals.get('skipped',0)}")
+    await _log(
+        run_oid, "info",
+        f"Run finished: sent={totals.get('sent',0)} "
+        f"failed={totals.get('failed',0)} "
+        f"skipped={totals.get('skipped',0)} "
+        f"certs_skipped={totals.get('certs_skipped',0)}",
+    )
 
     # Drop CSV bytes now that the run is done — they're recipient PII.
     await MongoDB.runs().update_one(

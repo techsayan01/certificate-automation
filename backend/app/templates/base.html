@@ -16,7 +16,7 @@
           <a href="/admin/users" class="{% if request.url.path.startswith('/admin/users') %}active{% endif %}">Users</a>
         {% else %}
           <a href="/festival/send" class="{% if '/send' in request.url.path %}active{% endif %}">Send certificates</a>
-          <a href="/festival/templates" class="{% if '/templates' in request.url.path %}active{% endif %}">Templates</a>
+          <a href="/festival/manage" class="{% if request.url.path.startswith('/festival/manage') or request.url.path.startswith('/festival/templates') %}active{% endif %}">Manage</a>
           <a href="/festival/runs" class="{% if '/runs' in request.url.path %}active{% endif %}">Runs</a>
           <a href="/festival/settings" class="{% if '/settings' in request.url.path %}active{% endif %}">Settings</a>
         {% endif %}
