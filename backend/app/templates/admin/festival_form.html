@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == 'create' %}New festival{% else %}Edit {{ festival.name }}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{% if mode == 'create' %}New festival{% else %}Edit festival{% endif %}</h1>
+  <a href="/admin/festivals" class="btn">← Back</a>
+</div>
+
+<form method="post"
+      action="{% if mode == 'create' %}/admin/festivals{% else %}/admin/festivals/{{ festival.id }}{% endif %}"
+      class="card">
+
+  <h2 class="section-title">Basics</h2>
+
+  <label>Slug
+    <input type="text" name="slug" required pattern="[a-z0-9_-]+" minlength="2" maxlength="64"
+           value="{{ festival.slug if festival else '' }}"
+           {% if mode == 'edit' %}readonly{% endif %}
+           placeholder="gvff"/>
+    <small class="muted">Lowercase, used in URLs. Cannot be changed after creation.</small>
+  </label>
+
+  <label>Festival name
+    <input type="text" name="name" required value="{{ festival.name if festival else '' }}"
+           placeholder="Global Visionaries Film Festival"/>
+  </label>
+
+  <label>Status
+    <select name="festival_status">
+      <option value="active"   {% if festival and festival.status == 'active' %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if festival and festival.status == 'inactive' %}selected{% endif %}>Inactive</option>
+    </select>
+  </label>
+
+  <h2 class="section-title">Gmail credentials</h2>
+  <p class="muted">
+    From Google Cloud Console → APIs &amp; Services → Credentials → OAuth 2.0 Client ID.
+    The festival user will connect Gmail via OAuth after creation.
+  </p>
+
+  <label>Client ID
+    <input type="text" name="gmail_client_id"
+           value="{{ festival.gmail_client_id if festival else '' }}"
+           placeholder="xxxxxx.apps.googleusercontent.com"/>
+  </label>
+
+  <label>Client secret
+    {% if mode == 'edit' %}<small class="muted">Leave blank to keep the existing secret.</small>{% endif %}
+    <input type="password" name="gmail_client_secret"
+           placeholder="{% if mode == 'edit' %}•••••••• (already set){% else %}GOCSPX-...{% endif %}"/>
+  </label>
+
+  <label>Project ID
+    <input type="text" name="gmail_project_id"
+           value="{{ festival.gmail_project_id if festival else '' }}"/>
+  </label>
+
+  <label>Sender email
+    <input type="email" name="gmail_sender_email"
+           value="{{ festival.gmail_sender_email if festival else '' }}"
+           placeholder="festival@gmail.com"/>
+  </label>
+
+  <h2 class="section-title">Email defaults</h2>
+
+  <label>Subject line
+    <input type="text" name="email_subject"
+           value="{{ festival.defaults.email_subject if festival else '' }}"
+           placeholder="Congratulations — Your Certificate is Here!"/>
+  </label>
+
+  <label>From name
+    <input type="text" name="email_from_name"
+           value="{{ festival.defaults.email_from_name if festival else '' }}"
+           placeholder="Global Visionaries Film Fest"/>
+  </label>
+
+  <label>Default season label
+    <input type="text" name="season"
+           value="{{ festival.defaults.season if festival else '' }}"
+           placeholder="Season 5"/>
+    <small class="muted">Can be overridden per run.</small>
+  </label>
+
+  <label>Default season date
+    <input type="text" name="season_date"
+           value="{{ festival.defaults.season_date if festival else '' }}"
+           placeholder="Sep - Jan 2026"/>
+  </label>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">
+      {% if mode == 'create' %}Create festival{% else %}Save changes{% endif %}
+    </button>
+    <a href="/admin/festivals" class="btn">Cancel</a>
+  </div>
+</form>
+
+<style>
+  .section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em;
+                   color: #6b7280; margin: 24px 0 12px; padding-top: 12px;
+                   border-top: 1px solid #f3f4f6; }
+  .section-title:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+  small.muted { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; }
+  .form-actions { margin-top: 24px; display: flex; gap: 12px; }
+</style>
+{% endblock %}

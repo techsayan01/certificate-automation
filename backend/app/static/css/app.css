@@ -1,0 +1,117 @@
+/* ── Reset + base ────────────────────────────────────────────────────────── */
+*,*::before,*::after { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1f2937;
+  background: #f7f8fb;
+}
+a { color: #2563eb; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.muted { color: #6b7280; }
+.inline { display: inline; }
+
+/* ── Top nav ─────────────────────────────────────────────────────────────── */
+.topnav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  background: #111827;
+  color: #e5e7eb;
+  border-bottom: 1px solid #1f2937;
+}
+.topnav .brand { font-weight: 600; color: #f9fafb; }
+.topnav .links { display: flex; gap: 16px; flex: 1; }
+.topnav .links a { color: #9ca3af; padding: 4px 8px; border-radius: 4px; }
+.topnav .links a.active { color: #f9fafb; background: #1f2937; }
+.topnav .links a:hover { color: #f9fafb; text-decoration: none; }
+.topnav .user-menu { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.topnav .email { color: #d1d5db; }
+.topnav .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; }
+.topnav .badge-admin { background: #7c3aed; color: white; }
+.topnav .badge-festival_user { background: #0891b2; color: white; }
+.topnav button.link {
+  background: none; border: none; color: #9ca3af; cursor: pointer;
+  font-size: 13px; padding: 0;
+}
+.topnav button.link:hover { color: #f9fafb; }
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.container { max-width: 1100px; margin: 32px auto; padding: 0 24px; }
+.page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; }
+.page-header h1 { margin: 0; font-size: 22px; }
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+.card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* ── Login ──────────────────────────────────────────────────────────────── */
+.login-wrap { display: flex; justify-content: center; padding: 60px 0; }
+.login-card { width: 360px; }
+.login-card h1 { margin: 0 0 4px; font-size: 20px; }
+.login-card p { margin: 0 0 20px; }
+
+/* ── Forms ──────────────────────────────────────────────────────────────── */
+label { display: block; margin-bottom: 14px; font-weight: 500; }
+input[type=text], input[type=email], input[type=password],
+input[type=url], textarea, select {
+  width: 100%;
+  padding: 8px 10px;
+  margin-top: 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+textarea { min-height: 120px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.btn {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn:hover { background: #f3f4f6; }
+.btn-primary { background: #2563eb; color: white; border-color: #2563eb; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-danger  { background: #dc2626; color: white; border-color: #dc2626; }
+.btn-danger:hover { background: #b91c1c; }
+
+/* ── Alerts ─────────────────────────────────────────────────────────────── */
+.alert { padding: 10px 14px; border-radius: 6px; margin-bottom: 14px; }
+.alert-error   { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.alert-success { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.alert-info    { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #f3f4f6; }
+th { background: #f9fafb; font-weight: 600; font-size: 13px; color: #4b5563; }
+tr:hover td { background: #fafbfc; }
+.actions { display: flex; gap: 8px; }
+
+/* ── Pills / statuses ───────────────────────────────────────────────────── */
+.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+.pill-running { background: #fef3c7; color: #92400e; }
+.pill-done    { background: #d1fae5; color: #065f46; }
+.pill-failed  { background: #fee2e2; color: #991b1b; }
+.pill-queued  { background: #e5e7eb; color: #374151; }
+.pill-active   { background: #d1fae5; color: #065f46; }
+.pill-inactive { background: #e5e7eb; color: #374151; }
