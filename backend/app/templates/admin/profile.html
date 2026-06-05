@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Profile — Admin{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>My profile</h1>
+</div>
+
+{% set ok  = request.query_params.get("ok") %}
+{% set err = request.query_params.get("error") %}
+{% if ok  %}<div class="alert alert-success">{{ ok }}</div>{% endif %}
+{% if err %}<div class="alert alert-error">{{ err }}</div>{% endif %}
+
+<!-- Canva Integration -->
+<div class="card" style="margin-bottom:20px;">
+  <h3 style="margin-top:0;">Canva integration</h3>
+  <p class="muted">
+    Enter your Canva API credentials here. All festivals you manage will use
+    these to generate certificate PDFs via Canva Autofill.
+    Get them at <a href="https://www.canva.com/developers" target="_blank">canva.com/developers</a>
+    → your integration → OAuth.
+  </p>
+
+  {% if canva_configured %}
+    <p><span class="pill pill-done">Configured</span>
+      Client ID: <code>{{ canva_client_id }}</code></p>
+  {% else %}
+    <p><span class="pill pill-queued">Not configured</span>
+      Canva credentials not set — festival users won't be able to connect Canva until you add them.</p>
+  {% endif %}
+
+  <form method="post" action="/admin/profile/canva" style="margin-top:14px;">
+    <label>Client ID
+      <input type="text" name="canva_client_id" value="{{ canva_client_id }}"
+             placeholder="OC-XXXXXXXXXXXXXXX" required/>
+    </label>
+    <label>Client secret
+      {% if canva_configured %}
+        <small class="muted">Leave blank to keep the existing secret.</small>
+      {% endif %}
+      <input type="password" name="canva_client_secret"
+             placeholder="{% if canva_configured %}•••••• (already set){% else %}cnvca-...{% endif %}"/>
+    </label>
+    <button type="submit" class="btn btn-primary">Save Canva credentials</button>
+  </form>
+</div>
+
+<!-- Change password -->
+<div class="card">
+  <h3 style="margin-top:0;">Change password</h3>
+  <form method="post" action="/admin/profile/password">
+    <label>Current password
+      <input type="password" name="current_password" required autocomplete="current-password"/>
+    </label>
+    <label>New password
+      <input type="password" name="new_password" required minlength="8" autocomplete="new-password"/>
+      <small class="muted">At least 8 characters.</small>
+    </label>
+    <button type="submit" class="btn btn-primary">Change password</button>
+  </form>
+</div>
+
+<style>
+  small.muted { display:block; margin-top:4px; font-size:12px; font-weight:400; }
+  h3 { font-size:15px; }
+</style>
+{% endblock %}

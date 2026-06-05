@@ -30,6 +30,7 @@ from backend.app.auth.service import (
 from backend.app.db.client import MongoDB
 from backend.app.db.models import UserRole, utc_now
 from backend.app.routes.admin import router as admin_router
+from backend.app.routes.admin_profile import router as admin_profile_router
 from backend.app.routes.admin_users import router as admin_users_router
 from backend.app.routes.auth import router as auth_router
 from backend.app.routes.festival import router as festival_router
@@ -78,6 +79,7 @@ app = FastAPI(
 app.mount("/static", StaticFiles(directory="backend/app/static"), name="static")
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(admin_profile_router)
 app.include_router(admin_users_router)
 app.include_router(festival_router)
 app.include_router(templates_router)

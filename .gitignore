@@ -1,6 +1,9 @@
 # Credentials — never commit these
 .env
 projects/**/.env
+# GCP service account keys
+*-[0-9a-f]*.json
+*service*account*.json
 projects/**/gmail_token.json
 canva_token.json
 gmail_token.json

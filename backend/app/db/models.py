@@ -78,6 +78,14 @@ class RunStatus(str, Enum):
 
 # ── User ──────────────────────────────────────────────────────────────────────
 
+class AdminCanvaCredentials(BaseModel):
+    """Canva integration credentials — stored on admin user docs.
+    Each admin registers their own Canva integration (client_id + secret).
+    The refresh_token for each festival remains on the festival doc."""
+    client_id:         str = ""
+    client_secret_enc: str = ""        # Fernet-encrypted
+
+
 class UserBase(BaseModel):
     email: EmailStr
     role:  UserRole
@@ -101,6 +109,8 @@ class UserDoc(UserBase):
 
     id: PyObjectId | None = Field(default=None, alias="_id")
     password_hash: str
+    # Canva credentials — populated by admin users only, empty for festival_users
+    canva: AdminCanvaCredentials = Field(default_factory=AdminCanvaCredentials)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
 

@@ -3,28 +3,20 @@ OAuth connect/callback routes for Gmail and Canva.
 
 Gmail
 ─────
-  Each festival supplies its own OAuth client (different Google Cloud
-  project per festival) — gmail_client_id + gmail_client_secret are
-  stored on the festival doc by the admin.
-
-  Flow:
-      /festival/connect/gmail  →  redirect to Google with state=signed({fid,uid,prv:"gmail"})
-      Google → /oauth/gmail/callback?code&state
-      We exchange the code, fetch refresh_token, encrypt, store on the
-      festival doc, then fetch the user's signature once.
+  Each festival supplies its own OAuth client.
+  /festival/connect/gmail → Google OAuth → /oauth/gmail/callback
+  refresh_token stored encrypted on the festival doc.
 
 Canva
 ─────
-  ONE Canva integration (Cert-Automate) powers every festival. The
-  client_id and client_secret live in service env vars. Each festival
-  still gets its own refresh_token so different festivals can authorise
-  different Canva accounts.
+  Canva credentials are PER ADMIN (client_id + client_secret stored on
+  the admin's user doc, set in /admin/profile).  Each festival still
+  gets its own refresh_token.  The state carries the admin's user_id so
+  the callback can load the right credentials.
 
-  Flow uses PKCE — the verifier rides along inside the signed state so
-  we can match it on callback.
+  PKCE verifier rides inside the signed state.
 
-Disconnect routes wipe just the refresh_token, leaving the client
-config intact so reconnecting is one click.
+Disconnect routes wipe only the refresh_token.
 """
 
 from __future__ import annotations
@@ -72,8 +64,21 @@ async def _load_festival_or_403(user: UserDoc) -> dict:
     return doc
 
 
+async def _admin_canva_creds(festival: dict) -> tuple[str, str]:
+    """Return (client_id, client_secret) from the admin who owns the festival."""
+    admin_id = festival.get("created_by", "")
+    if not admin_id or not ObjectId.is_valid(admin_id):
+        return "", ""
+    admin = await MongoDB.users().find_one({"_id": ObjectId(admin_id)})
+    if not admin:
+        return "", ""
+    canva = admin.get("canva") or {}
+    client_id     = canva.get("client_id", "")
+    client_secret = decrypt(canva.get("client_secret_enc", ""))
+    return client_id, client_secret
+
+
 def _redirect_uri(provider: str) -> str:
-    """Each provider has its own callback path."""
     return f"{get_settings().BASE_URL}/oauth/{provider}/callback"
 
 
@@ -94,27 +99,21 @@ async def gmail_connect(
 ):
     festival = await _load_festival_or_403(user)
     gmail = festival.get("gmail") or {}
-
     if not gmail.get("client_id") or not gmail.get("client_secret_enc"):
         return _connect_error_redirect(
-            "Gmail client_id / client_secret aren't configured for this festival. "
+            "Gmail credentials aren't configured for this festival. "
             "Ask an admin to set them."
         )
 
-    state = make_state({
-        "fid": str(festival["_id"]),
-        "uid": str(user.id),
-        "prv": "gmail",
-    })
-
+    state = make_state({"fid": str(festival["_id"]), "uid": str(user.id), "prv": "gmail"})
     params = {
-        "client_id":      gmail["client_id"],
-        "redirect_uri":   _redirect_uri("gmail"),
-        "response_type":  "code",
-        "scope":          " ".join(GMAIL_SCOPES),
-        "access_type":    "offline",       # refresh_token
-        "prompt":         "consent",       # force refresh_token every time
-        "state":          state,
+        "client_id":     gmail["client_id"],
+        "redirect_uri":  _redirect_uri("gmail"),
+        "response_type": "code",
+        "scope":         " ".join(GMAIL_SCOPES),
+        "access_type":   "offline",
+        "prompt":        "consent",
+        "state":         state,
     }
     return RedirectResponse(
         url=f"{GMAIL_AUTH_URL}?{urllib.parse.urlencode(params)}",
@@ -123,8 +122,8 @@ async def gmail_connect(
 
 
 @router.get("/oauth/gmail/callback")
-async def gmail_callback(request: Request, code: str | None = None, state: str | None = None,
-                        error: str | None = None):
+async def gmail_callback(request: Request, code: str | None = None,
+                         state: str | None = None, error: str | None = None):
     if error:
         return _connect_error_redirect(f"Gmail OAuth declined: {error}")
     if not code or not state:
@@ -142,45 +141,33 @@ async def gmail_callback(request: Request, code: str | None = None, state: str |
     client_id     = gmail.get("client_id", "")
     client_secret = decrypt(gmail.get("client_secret_enc", ""))
     if not client_id or not client_secret:
-        return _connect_error_redirect("Festival is missing Gmail client_id/secret")
+        return _connect_error_redirect("Festival is missing Gmail credentials")
 
-    # Exchange code → token
-    async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.post(
-            GMAIL_TOKEN_URL,
-            data={
-                "code":          code,
-                "client_id":     client_id,
-                "client_secret": client_secret,
-                "redirect_uri":  _redirect_uri("gmail"),
-                "grant_type":    "authorization_code",
-            },
-        )
+    async with httpx.AsyncClient(timeout=15) as http:
+        r = await http.post(GMAIL_TOKEN_URL, data={
+            "code":          code,
+            "client_id":     client_id,
+            "client_secret": client_secret,
+            "redirect_uri":  _redirect_uri("gmail"),
+            "grant_type":    "authorization_code",
+        })
     if r.status_code != 200:
         return _connect_error_redirect(
-            f"Gmail token exchange failed: {r.status_code} {r.text[:200]}"
-        )
+            f"Gmail token exchange failed: {r.status_code} {r.text[:200]}")
 
-    token = r.json()
-    refresh_token = token.get("refresh_token")
+    refresh_token = r.json().get("refresh_token")
     if not refresh_token:
         return _connect_error_redirect(
-            "Google didn't return a refresh_token. Try disconnecting at "
-            "myaccount.google.com → Security → Third-party apps, then reconnect."
-        )
+            "Google didn't return a refresh_token. Revoke access at "
+            "myaccount.google.com → Security → Third-party apps, then reconnect.")
 
     await MongoDB.festivals().update_one(
         {"_id": festival["_id"]},
-        {"$set": {
-            "gmail.refresh_token_enc": encrypt(refresh_token),
-            "updated_at": datetime.now(timezone.utc),
-        }},
+        {"$set": {"gmail.refresh_token_enc": encrypt(refresh_token),
+                  "updated_at": datetime.now(timezone.utc)}},
     )
-
-    return RedirectResponse(
-        url="/festival/settings?ok=gmail+connected",
-        status_code=status.HTTP_303_SEE_OTHER,
-    )
+    return RedirectResponse(url="/festival/settings?ok=gmail+connected",
+                            status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/festival/disconnect/gmail")
@@ -191,11 +178,8 @@ async def gmail_disconnect(
     festival = await _load_festival_or_403(user)
     await MongoDB.festivals().update_one(
         {"_id": festival["_id"]},
-        {"$set": {
-            "gmail.refresh_token_enc": "",
-            "gmail.signature_html":    "",
-            "updated_at": datetime.now(timezone.utc),
-        }},
+        {"$set": {"gmail.refresh_token_enc": "", "gmail.signature_html": "",
+                  "updated_at": datetime.now(timezone.utc)}},
     )
     return RedirectResponse(url="/festival/settings", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -212,26 +196,28 @@ async def canva_connect(
     request: Request,
     user: Annotated[UserDoc, Depends(require_festival_user)],
 ):
-    settings = get_settings()
-    if not settings.CANVA_CLIENT_ID or not settings.CANVA_CLIENT_SECRET:
+    festival = await _load_festival_or_403(user)
+    client_id, _ = await _admin_canva_creds(festival)
+
+    if not client_id:
         return _connect_error_redirect(
-            "Canva isn't configured on this deployment. "
-            "Ask an admin to set CANVA_CLIENT_ID and CANVA_CLIENT_SECRET."
+            "Canva credentials aren't configured yet. "
+            "Ask your admin to add them under Admin → Profile → Canva integration."
         )
 
-    festival = await _load_festival_or_403(user)
-
+    settings = get_settings()
     verifier = random_pkce_verifier()
     state = make_state({
         "fid": str(festival["_id"]),
         "uid": str(user.id),
         "prv": "canva",
         "ver": verifier,
+        # Carry the admin_id so the callback can load the right client_secret
+        "aid": festival.get("created_by", ""),
     })
-
     params = {
         "response_type":         "code",
-        "client_id":             settings.CANVA_CLIENT_ID,
+        "client_id":             client_id,
         "redirect_uri":          _redirect_uri("canva"),
         "scope":                 settings.CANVA_SCOPES,
         "code_challenge":        _pkce_challenge(verifier),
@@ -245,8 +231,8 @@ async def canva_connect(
 
 
 @router.get("/oauth/canva/callback")
-async def canva_callback(request: Request, code: str | None = None, state: str | None = None,
-                        error: str | None = None):
+async def canva_callback(request: Request, code: str | None = None,
+                         state: str | None = None, error: str | None = None):
     if error:
         return _connect_error_redirect(f"Canva OAuth declined: {error}")
     if not code or not state:
@@ -260,11 +246,26 @@ async def canva_callback(request: Request, code: str | None = None, state: str |
     if not festival:
         return _connect_error_redirect("Festival not found")
 
+    # Load Canva credentials from the admin who owns this festival
+    admin_id = payload.get("aid") or festival.get("created_by", "")
+    admin = await MongoDB.users().find_one({"_id": ObjectId(admin_id)}) if admin_id else None
+    if not admin:
+        return _connect_error_redirect("Admin not found")
+
+    canva_creds = admin.get("canva") or {}
+    client_id     = canva_creds.get("client_id", "")
+    client_secret = decrypt(canva_creds.get("client_secret_enc", ""))
+    if not client_id or not client_secret:
+        return _connect_error_redirect(
+            "Admin's Canva credentials are not configured. "
+            "Admin must set them at Admin → Profile → Canva integration."
+        )
+
     settings = get_settings()
-    async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.post(
+    async with httpx.AsyncClient(timeout=15) as http:
+        r = await http.post(
             settings.CANVA_TOKEN_URL,
-            auth=(settings.CANVA_CLIENT_ID, settings.CANVA_CLIENT_SECRET),
+            auth=(client_id, client_secret),
             data={
                 "grant_type":    "authorization_code",
                 "code":          code,
@@ -274,26 +275,19 @@ async def canva_callback(request: Request, code: str | None = None, state: str |
         )
     if r.status_code != 200:
         return _connect_error_redirect(
-            f"Canva token exchange failed: {r.status_code} {r.text[:200]}"
-        )
+            f"Canva token exchange failed: {r.status_code} {r.text[:200]}")
 
-    token = r.json()
-    refresh_token = token.get("refresh_token")
+    refresh_token = r.json().get("refresh_token")
     if not refresh_token:
         return _connect_error_redirect("Canva didn't return a refresh_token")
 
     await MongoDB.festivals().update_one(
         {"_id": festival["_id"]},
-        {"$set": {
-            "canva.refresh_token_enc": encrypt(refresh_token),
-            "updated_at": datetime.now(timezone.utc),
-        }},
+        {"$set": {"canva.refresh_token_enc": encrypt(refresh_token),
+                  "updated_at": datetime.now(timezone.utc)}},
     )
-
-    return RedirectResponse(
-        url="/festival/settings?ok=canva+connected",
-        status_code=status.HTTP_303_SEE_OTHER,
-    )
+    return RedirectResponse(url="/festival/settings?ok=canva+connected",
+                            status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/festival/disconnect/canva")
@@ -304,9 +298,7 @@ async def canva_disconnect(
     festival = await _load_festival_or_403(user)
     await MongoDB.festivals().update_one(
         {"_id": festival["_id"]},
-        {"$set": {
-            "canva.refresh_token_enc": "",
-            "updated_at": datetime.now(timezone.utc),
-        }},
+        {"$set": {"canva.refresh_token_enc": "",
+                  "updated_at": datetime.now(timezone.utc)}},
     )
     return RedirectResponse(url="/festival/settings", status_code=status.HTTP_303_SEE_OTHER)

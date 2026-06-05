@@ -33,10 +33,10 @@ require_var() {
 require_var PROJECT_ID
 require_var REGION
 require_var MONGO_URI
-require_var CANVA_CLIENT_ID
-require_var CANVA_CLIENT_SECRET
 require_var INITIAL_ADMIN_EMAIL
 require_var INITIAL_ADMIN_PASSWORD
+# Note: CANVA_CLIENT_ID/SECRET are no longer global — each admin enters
+# their own Canva credentials at Admin → Profile after first login.
 
 SERVICE="${SERVICE:-cert-automation}"
 QUEUE_NAME="${QUEUE_NAME:-cert-runs}"
@@ -86,8 +86,6 @@ ensure_secret() {
 }
 echo "[3/8] Secrets…"
 ensure_secret mongo-uri              "${MONGO_URI}"
-ensure_secret canva-client-id        "${CANVA_CLIENT_ID}"
-ensure_secret canva-client-secret    "${CANVA_CLIENT_SECRET}"
 ensure_secret initial-admin-password "${INITIAL_ADMIN_PASSWORD}"
 
 # Generated keys — only create if missing, never overwrite.
@@ -109,8 +107,7 @@ fi
 
 # ── 4. IAM bindings ──────────────────────────────────────────────────────────
 echo "[4/8] IAM…"
-for s in mongo-uri session-secret encryption-key initial-admin-password \
-         canva-client-id canva-client-secret; do
+for s in mongo-uri session-secret encryption-key initial-admin-password; do
   gcloud secrets add-iam-policy-binding "${s}" \
     --member="serviceAccount:${CRUN_SA}" \
     --role="roles/secretmanager.secretAccessor" \
@@ -169,7 +166,7 @@ gcloud run deploy "${SERVICE}" \
   --min-instances=0 --max-instances=1 \
   --timeout=3600 \
   --set-env-vars="ENV=production,BASE_URL=${EFFECTIVE_BASE_URL},GCP_PROJECT=${PROJECT_ID},CLOUD_TASKS_LOCATION=${REGION},CLOUD_TASKS_QUEUE=${QUEUE_NAME},CLOUD_TASKS_SA_EMAIL=${TASKS_SA},INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}" \
-  --set-secrets="MONGO_URI=mongo-uri:latest,SESSION_SECRET=session-secret:latest,ENCRYPTION_KEY=encryption-key:latest,INITIAL_ADMIN_PASSWORD=initial-admin-password:latest,CANVA_CLIENT_ID=canva-client-id:latest,CANVA_CLIENT_SECRET=canva-client-secret:latest" \
+  --set-secrets="MONGO_URI=mongo-uri:latest,SESSION_SECRET=session-secret:latest,ENCRYPTION_KEY=encryption-key:latest,INITIAL_ADMIN_PASSWORD=initial-admin-password:latest" \
   --quiet
 
 # ── 8. Print final URL + next steps ──────────────────────────────────────────
