@@ -64,7 +64,9 @@ steps:
       # Plain env vars
       - "--set-env-vars=ENV=production,BASE_URL=${_BASE_URL},GCP_PROJECT=${PROJECT_ID},CLOUD_TASKS_LOCATION=${_REGION},CLOUD_TASKS_QUEUE=cert-runs,CLOUD_TASKS_SA_EMAIL=cert-tasks@${PROJECT_ID}.iam.gserviceaccount.com,INITIAL_ADMIN_EMAIL=admin@example.com"
       # Secrets (latest version)
-      - "--set-secrets=MONGO_URI=mongo-uri:latest,SESSION_SECRET=session-secret:latest,ENCRYPTION_KEY=encryption-key:latest,INITIAL_ADMIN_PASSWORD=initial-admin-password:latest,CANVA_CLIENT_ID=canva-client-id:latest,CANVA_CLIENT_SECRET=canva-client-secret:latest"
+      # Canva credentials are no longer global — each admin stores their own
+      # in their profile after first login.
+      - "--set-secrets=MONGO_URI=mongo-uri:latest,SESSION_SECRET=session-secret:latest,ENCRYPTION_KEY=encryption-key:latest,INITIAL_ADMIN_PASSWORD=initial-admin-password:latest"
 
 images:
   - "${_IMAGE}:${SHORT_SHA}"

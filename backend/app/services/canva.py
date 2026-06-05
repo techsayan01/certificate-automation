@@ -50,9 +50,12 @@ class CanvaApiError(RuntimeError):
 class CanvaClient:
     """Async Canva REST client bound to a single festival's credentials."""
 
-    def __init__(self, *, festival_id: str, refresh_token: str):
+    def __init__(self, *, festival_id: str, refresh_token: str,
+                 client_id: str = "", client_secret: str = ""):
         self._festival_id   = festival_id
         self._refresh_token = refresh_token
+        self._client_id     = client_id
+        self._client_secret = client_secret
         self._access_token: str | None = None
         # poll cadence — short enough to feel snappy, long enough not to
         # hammer Canva during autofill jobs (typical: 2-4 seconds)
@@ -70,6 +73,7 @@ class CanvaClient:
         if not festival:
             raise CanvaAuthError(f"Festival {festival_id} not found")
 
+        # ── Refresh token (on the festival doc) ──────────────────────────────
         canva = festival.get("canva") or {}
         enc = canva.get("refresh_token_enc", "")
         if not enc:
@@ -77,7 +81,6 @@ class CanvaClient:
                 "Canva is not connected for this festival. "
                 "Ask the festival user to click Connect Canva."
             )
-
         try:
             refresh_token = decrypt(enc)
         except ValueError as exc:
@@ -86,7 +89,34 @@ class CanvaClient:
                 "ENCRYPTION_KEY may have rotated — reconnect Canva."
             )
 
-        client = cls(festival_id=festival_id, refresh_token=refresh_token)
+        # ── client_id / client_secret: from the admin who owns this festival ─
+        admin_id = festival.get("created_by", "")
+        if not admin_id or not ObjectId.is_valid(admin_id):
+            raise CanvaAuthError("Festival has no admin owner (created_by missing)")
+
+        admin = await MongoDB.users().find_one({"_id": ObjectId(admin_id)})
+        if not admin:
+            raise CanvaAuthError(f"Admin user {admin_id} not found")
+
+        admin_canva = admin.get("canva") or {}
+        client_id = admin_canva.get("client_id", "")
+        try:
+            client_secret = decrypt(admin_canva.get("client_secret_enc", ""))
+        except ValueError as exc:
+            raise CanvaAuthError(f"Admin Canva secret can't be decrypted: {exc}")
+
+        if not client_id or not client_secret:
+            raise CanvaAuthError(
+                "Admin hasn't configured Canva credentials yet. "
+                "Go to Admin → Profile → Canva integration."
+            )
+
+        client = cls(
+            festival_id=festival_id,
+            refresh_token=refresh_token,
+            client_id=client_id,
+            client_secret=client_secret,
+        )
         await client._refresh_access_token()
         return client
 
@@ -97,7 +127,7 @@ class CanvaClient:
         async with httpx.AsyncClient(timeout=15) as http:
             r = await http.post(
                 settings.CANVA_TOKEN_URL,
-                auth=(settings.CANVA_CLIENT_ID, settings.CANVA_CLIENT_SECRET),
+                auth=(self._client_id, self._client_secret),
                 data={
                     "grant_type":    "refresh_token",
                     "refresh_token": self._refresh_token,
